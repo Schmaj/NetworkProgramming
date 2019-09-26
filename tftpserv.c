@@ -20,7 +20,7 @@ int parse_packet(char* buffer, int size){
 		return -1;
 	}
 	unsigned short opcode = ntohs((buffer[0] << 8)|buffer[1]);
-
+	
 }
 
 
