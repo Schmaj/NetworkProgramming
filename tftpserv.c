@@ -15,6 +15,9 @@
 #include <signal.h>
 #include <fcntl.h>
 
+unsigned int parse_packet(char* packet, unisgned int size){
+	
+}
 
 
 int main(int argc, char* argv[]){
