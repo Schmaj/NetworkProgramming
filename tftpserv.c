@@ -15,12 +15,20 @@
 #include <signal.h>
 #include <fcntl.h>
 
-int parse_packet(char* buffer, int size){
-	if (size <= 0){
-		return -1;
+void childFunction(unsigned int fd, char* buffer, sockaddr* addr){
+	unsigned short int opcode = ntohs((buffer[0] << 8) | buffer[1]);
+	if (opcode == 1){ \\ Read
+
+	} else if (opcode == 2) { \\Write
+
+	} else if (opcode == 3) { \\ Data
+
+	} else if (opcode == 4) { \\Ack
+
+	} else if (opcode == 5) { \\Error
+
 	}
-	unsigned short opcode = ntohs((buffer[0] << 8)|buffer[1]);
-	
+	return
 }
 
 
