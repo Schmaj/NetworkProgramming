@@ -15,8 +15,12 @@
 #include <signal.h>
 #include <fcntl.h>
 
-unsigned int parse_packet(char* packet, unisgned int size){
-	
+int parse_packet(char* buffer, int size){
+	if (size <= 0){
+		return -1;
+	}
+	unsigned short opcode = ntohs((buffer[0] << 8)|buffer[1]);
+
 }
 
 
