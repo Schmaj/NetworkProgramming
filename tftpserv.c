@@ -28,9 +28,13 @@ void childFunction(unsigned int fd, char* buffer, sockaddr* addr){
 		unsigned int file_d = open(Filename, O_RDONLY);
 		if (file_d == -1){	//ERROR
 			perror("childFuntion, Read, Open");
-
 		}
+		
 	} else if (opcode == 2) { //WRITE
+		unsigned int file_d = open(Filename, O_WRONLY);
+		if (file_d == -1){ //ERROR
+			perror("childFunction, Write, Open");
+		}
 
 	}
 	return;
