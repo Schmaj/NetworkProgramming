@@ -15,6 +15,10 @@
 #include <signal.h>
 #include <fcntl.h>
 
+#define MAX_PACKET 512
+
+int children = 0;
+
 int parse_packet(char* buffer, int size){
 	if (size <= 0){
 		return -1;
@@ -23,8 +27,48 @@ int parse_packet(char* buffer, int size){
 
 }
 
+void terminate(){
+	printf("Exiting program\n");
+	int stat;
+	printf("%d children remaining\n", children);
+	// loop until all children have been collected
+	while(children > 0){
+		wait(&stat);
+		children--;
+		printf("caught child\n");
+	}
+	exit(0);
+}
+
+void sig_interrupt(int signo){
+	// do the things
+
+	printf("Caught interrupt\n");
+
+	terminate();
+}
 
 int main(int argc, char* argv[]){
+
+	// struct to hold desired sigaction
+	struct sigaction sigintResponse;
+	// specify function to be called as handler
+	sigintResponse.sa_handler = &sig_interrupt;
+	// initialize sa_mask to an empty set
+	sigemptyset(&(sigintResponse.sa_mask));
+	// no flags
+	sigintResponse.sa_flags = 0;
+
+	// sets new action for receiving interrupt signal
+	int rc = sigaction(SIGINT, &sigintResponse, NULL);
+	if(rc < 0){
+		perror("ERROR with sigaction\n");
+		return EXIT_FAILURE;
+	}
+
+	// set the response to ingore signal, will be applied to children when created so they may finish
+	// normally when a signal interrupt is sent to the parent
+	sigintResponse.sa_handler = SIG_IGN;
 
 	// check number of arguments
 	if(argc < 2){
@@ -65,8 +109,56 @@ int main(int argc, char* argv[]){
 
 		// send to child fd, buffer, sockaddr of client
 
+		// buffer to hold message from client
+		char* buf = calloc(MAX_PACKET, sizeof(char));
+		// struct to hold client ip address
+		struct sockaddr* client = calloc(1, sizeof(struct sockaddr));
 
+		// wait until a request is received and store number of bytes read
+		int readBytes = recvfrom(fd, buf, MAX_PACKET, 0, client, (socklen_t*)&len);
 
+		if(readBytes == -1){
+			perror("recvfrom() failed\n");
+			return EXIT_FAILURE;
+		}
+
+		// create child process to handle communication
+		int pid = fork();
+		// error
+		if(pid < 0){
+			perror("fork() failed\n");
+			return EXIT_FAILURE;
+		}
+		// child
+		else if(pid == 0){
+			// tells children to ignore signal interupt, signal interrupt will be
+			// meant for parent alone
+			int rc = sigaction(SIGINT, &sigintResponse, NULL);
+			if(rc < 0){
+				perror("ERROR with sigaction\n");
+				return EXIT_FAILURE;
+			}
+			childFunction(fd, buf, client);
+
+			// close finished socket descriptor
+			close(fd);
+
+			// deallocate memory
+			free(buf);
+			buf = NULL;
+			free(client);
+			client = NULL;
+		}
+
+		// increment number of children
+		children++;
+
+		// close file descriptor to previous socket in parent
+		close(fd);
+
+		// increment port number
+		portMin++;
+		server.sin_port = htons(portMin);
 
 
 	}
