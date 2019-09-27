@@ -21,24 +21,19 @@ int children = 0;
 
 void childFunction(unsigned int fd, char* buffer, sockaddr* addr){
 	unsigned short int opcode = ntohs((buffer[0] << 8) | buffer[1]);
-	if (opcode == 1){ \\ Read
-		char* Filename[MAX_PACKET];
-		char* Mode[MAX_PACKET];
-		strcpy(Filename, buffer[2]);
-		strcpy(Mode, buffer[3+strlen(Filename)]);
-		
-	} else if (opcode == 2) { \\Write
+	char* Filename[MAX_PACKET];
+	char* Mode[MAX_PACKET];
+	strcpy(Filename, &buffer[2]);
+	if (opcode == 1){ // READ
+		unsigned int file_d = open(Filename, O_RDONLY);
+		if (file_d == -1){	//ERROR
+			perror("childFuntion, Read, Open");
 
-	} else if (opcode == 3) { \\ Data
+		}
+	} else if (opcode == 2) { //WRITE
 
-	} else if (opcode == 4) { \\Ack
-
-	} else if (opcode == 5) { \\Error
-
-	} else {
-		return
 	}
-	return
+	return;
 }
 
 void terminate(){
