@@ -47,8 +47,22 @@ void childFunction(unsigned int fd, char* buffer, struct sockaddr* addr){
 		if (size <= 0){
 			perror("childFunction, Write, First recvfrom");
 		}
+		unsigned int blockcount = 0;
+		unsigned int blocknum;
 		while(1){
-			if (size == MAX_PACKET){ //Middle Data Packet
+			opcode = ntohs((buffer[0] << 8) | buffer[1]);
+			if (opcode != 3){ //ERROR
+				perror("childFunction, Loop, != DATA");
+			}
+
+			blocknum = ntohs((buffer[2]<<8)|buffer[3]);
+			if (blocknum != blockcount + 1){ //Wrong Order
+				((short*)ack)[0] = htons(2);
+				((short*)ack)[1] = htons(blockcount);
+				sendto(fd, ack, 4, 0, addr, sizeof(addr));
+			}
+			
+			if (size == MAX_PACKET){ //First/Middle Data Packet
 
 			} else { //End Data Packet
 
