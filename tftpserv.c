@@ -115,7 +115,7 @@ int main(int argc, char* argv[]){
 		}
 
 		// bind the socket to any ip address, and the next port in range, allowing it to be reached
-		int rc = bind(fd, (sockaddr*)server, sizeof(server));
+		int rc = bind(fd, (struct sockaddr*)&server, sizeof(server));
 		if(rc < 0 ){
 			perror("bind() failed\n");
 			return EXIT_FAILURE;
@@ -127,6 +127,8 @@ int main(int argc, char* argv[]){
 		char* buf = calloc(MAX_PACKET, sizeof(char));
 		// struct to hold client ip address
 		struct sockaddr* client = calloc(1, sizeof(struct sockaddr));
+
+		int len;
 
 		// wait until a request is received and store number of bytes read
 		int readBytes = recvfrom(fd, buf, MAX_PACKET, 0, client, (socklen_t*)&len);
