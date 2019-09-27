@@ -15,23 +15,81 @@
 #include <signal.h>
 #include <fcntl.h>
 
-#define MAX_PACKET 512
+#define MAX_PACKET 516
 
 int children = 0;
 
-void childFunction(unsigned int fd, char* buffer, sockaddr* addr){
+void resendDataAlarm(int signo){
+
+}
+
+void childFunction(unsigned int fd, char* buffer, sockaddr* addr, socklen_t cli_len){
 	unsigned short int opcode = ntohs((buffer[0] << 8) | buffer[1]);
 	char* Filename[MAX_PACKET];
 	char* Mode[MAX_PACKET];
 	strcpy(Filename, &buffer[2]);
 	if (opcode == 1){ // READ
+		// open file requested by client
 		unsigned int file_d = open(Filename, O_RDONLY);
 		if (file_d == -1){	//ERROR
 			perror("childFuntion, Read, Open");
 		}
+
+		// send first data packet, wait 1 second to resend anything, 10 seconds to timeout
+		// error if packet from wrong tid, send error packet and ignore
+
+		// data packets of the form 2 byte opcode, 2 byte block number, n byte data
+		// ACk packets of the form 2 byte opcode, 2 byte block number
 		
+		// set desired SIGALRM behavior for resending data
+		// struct to hold desired sigaction
+		struct sigaction response;
+		// specify function to be called as handler
+		response.sa_handler = &resendDataAlarm;
+		// initialize sa_mask to an empty set
+		sigemptyset(&(response.sa_mask));
+		// no flags
+		response.sa_flags = 0; 
+
+		// sets new action for receiving alarm signal
+		int rc = sigaction(SIGALRM, &response, NULL);
+		if(rc < 0){
+			printf("ERROR with sigaction\n");
+			return;
+		}
+
+		// send data, set alarms, wait
+		// initialize readBytes to value for data to continue to be transferred
+		int readBytes = MAX_PACKET;
+
+		// keeps track of current block number
+		short blockNumber = 1;
+		// opcode for data block
+		short dataCode = 3;
+
+		while(readBytes == MAX_PACKET){
+			// casts buffer to short pointer to set first two bytes and second 2 bytes as opcode and blocknumber
+			// respectively, in network byte order
+			((short*)buffer)[0] = htons(dataCode);
+			((short*)buffer)[1] = htons(blockNumber);
+
+
+			// read the next 512 bytes of the file into the buffer
+			readBytes = read(file_d, buffer + 4, MAX_PACKET - 4);
+
+			// send current block of data
+			sendto(fd, buffer, readBytes, 0, addr, cli_len);
+
+			
+
+
+
+		}
+
+
+
 	} else if (opcode == 2) { //WRITE
-		unsigned int file_d = open(Filename, O_WRONLY);
+		unsigned int file_d = open(Filename, O_CREAT | O_WRONLY);
 		if (file_d == -1){ //ERROR
 			perror("childFunction, Write, Open");
 		}
@@ -125,12 +183,12 @@ int main(int argc, char* argv[]){
 		// buffer to hold message from client
 		char* buf = calloc(MAX_PACKET, sizeof(char));
 		// struct to hold client ip address
-		struct sockaddr* client = calloc(1, sizeof(struct sockaddr));
+		struct sockaddr_in* client = calloc(1, sizeof(struct sockaddr_in));
 
 		int len;
 
 		// wait until a request is received and store number of bytes read
-		int readBytes = recvfrom(fd, buf, MAX_PACKET, 0, client, (socklen_t*)&len);
+		int readBytes = recvfrom(fd, buf, MAX_PACKET, 0, (struct sockaddr*)client, (socklen_t*)&len);
 
 		if(readBytes == -1){
 			perror("recvfrom() failed\n");
@@ -153,7 +211,7 @@ int main(int argc, char* argv[]){
 				perror("ERROR with sigaction\n");
 				return EXIT_FAILURE;
 			}
-			childFunction(fd, buf, client);
+			childFunction(fd, buf, client, cli_len);
 
 			// close finished socket descriptor
 			close(fd);
@@ -170,6 +228,9 @@ int main(int argc, char* argv[]){
 
 		// close file descriptor to previous socket in parent
 		close(fd);
+
+		free(buf);
+		buf = NULL;
 
 		// increment port number
 		portMin++;
