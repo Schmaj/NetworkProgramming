@@ -15,6 +15,7 @@
 #include <signal.h>
 #include <fcntl.h>
 
+<<<<<<< HEAD
 #define MAX_PACKET 512
 
 int children = 0;
@@ -24,7 +25,28 @@ int parse_packet(char* buffer, int size){
 		return -1;
 	}
 	unsigned short opcode = ntohs((buffer[0] << 8)|buffer[1]);
+=======
+void childFunction(unsigned int fd, char* buffer, sockaddr* addr){
+	unsigned short int opcode = ntohs((buffer[0] << 8) | buffer[1]);
+	if (opcode == 1){ \\ Read
+		char* Filename[MAX_PACKET];
+		char* Mode[MAX_PACKET];
+		strcpy(Filename, buffer[2]);
+		strcpy(Mode, buffer[3+strlen(Filename)]);
+		
+	} else if (opcode == 2) { \\Write
 
+	} else if (opcode == 3) { \\ Data
+
+	} else if (opcode == 4) { \\Ack
+>>>>>>> 40a6531ee601363d9ecbee07bbf69cadb6a2dfe9
+
+	} else if (opcode == 5) { \\Error
+
+	} else {
+		return
+	}
+	return
 }
 
 void terminate(){
