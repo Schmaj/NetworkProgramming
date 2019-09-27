@@ -19,21 +19,40 @@
 
 int children = 0;
 
-void childFunction(unsigned int fd, char* buffer, sockaddr* addr){
+void childFunction(unsigned int fd, char* buffer, struct sockaddr* addr){
 	unsigned short int opcode = ntohs((buffer[0] << 8) | buffer[1]);
-	char* Filename[MAX_PACKET];
-	char* Mode[MAX_PACKET];
+	char Filename[MAX_PACKET];
+	char Mode[MAX_PACKET];
 	strcpy(Filename, &buffer[2]);
 	if (opcode == 1){ // READ
 		unsigned int file_d = open(Filename, O_RDONLY);
 		if (file_d == -1){	//ERROR
 			perror("childFuntion, Read, Open");
 		}
-		
+
 	} else if (opcode == 2) { //WRITE
 		unsigned int file_d = open(Filename, O_WRONLY);
 		if (file_d == -1){ //ERROR
 			perror("childFunction, Write, Open");
+		}
+		bzero(buffer, MAX_PACKET);
+		char ack[4];
+		bzero(ack, 4);
+		((short*)ack)[0] = htons(2);
+		int size = sendto(fd, ack, 4, 0, addr, sizeof(addr));
+		if (size <= 0){
+			perror("childFunction, Write, AckSend");
+		}
+		size = recvfrom(fd, buffer, MAX_PACKET, 0, addr, (socklen_t *)sizeof(addr));
+		if (size <= 0){
+			perror("childFunction, Write, First recvfrom");
+		}
+		while(1){
+			if (size == MAX_PACKET){ //Middle Data Packet
+
+			} else { //End Data Packet
+
+			}
 		}
 
 	}
