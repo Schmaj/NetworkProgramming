@@ -233,7 +233,7 @@ void childFunction(unsigned int fd, char* buffer, struct sockaddr* addr, socklen
 			write(file_d, data, strlen(data));
 			((short*)ack)[0] = htons(2);
 			((short*)ack)[1] = htons(blockcount);
-			sendto(fd, ack, 4, 0, addr, sizeof(addr));
+			sendto(fd, ack, 4, 0, addr, sizeof(struct sockaddr_in));
 			if (size != MAX_PACKET){ //END OF TRANSMISSION
 				close(file_d);
 				return;
