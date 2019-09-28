@@ -90,7 +90,7 @@ void childFunction(unsigned int fd, char* buffer, struct sockaddr* addr, socklen
 			while(1){
 
 				// send current block of data
-				sendto(fd, buffer, readBytes, 0, addr, cli_len);
+				sendto(fd, buffer, readBytes + 4, 0, addr, cli_len);
 
 				// resend after 1 second
 				alarm(1);
