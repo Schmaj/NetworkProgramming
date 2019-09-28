@@ -105,7 +105,7 @@ void childFunction(unsigned int fd, char* buffer, struct sockaddr* addr, socklen
 					if(n == 10){
 						// clean up resources and terminate
 						free(response);
-						response == NULL;
+						response = NULL;
 						close(file_d);
 						return;
 					}
