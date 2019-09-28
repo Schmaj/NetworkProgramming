@@ -24,7 +24,7 @@ void resendDataAlarm(int signo){
 
 }
 
-void childFunction(unsigned int fd, char* buffer, sockaddr* addr, socklen_t cli_len){
+void childFunction(unsigned int fd, char* buffer, struct sockaddr* addr, socklen_t cli_len){
 	unsigned short int opcode = ntohs((buffer[0] << 8) | buffer[1]);
 	char Filename[MAX_PACKET];
 	strcpy(Filename, &buffer[2]);
@@ -129,7 +129,7 @@ void childFunction(unsigned int fd, char* buffer, sockaddr* addr, socklen_t cli_
 			write(file_d, data, strlen(data));
 			((short*)ack)[0] = htons(2);
 			((short*)ack)[1] = htons(blockcount);
-			endto(fd, ack, 4, 0, addr, sizeof(addr));
+			sendto(fd, ack, 4, 0, addr, sizeof(addr));
 			if (size != MAX_PACKET){ //END OF TRANSMISSION
 				close(file_d);
 				return;
@@ -254,7 +254,7 @@ int main(int argc, char* argv[]){
 				perror("ERROR with sigaction\n");
 				return EXIT_FAILURE;
 			}
-			childFunction(fd, buf, client, cli_len);
+			childFunction(fd, buf, (struct sockaddr *)client, sizeof(client));
 
 			// close finished socket descriptor
 			close(fd);
