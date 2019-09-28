@@ -346,7 +346,9 @@ int main(int argc, char* argv[]){
 
 		if(readBytes == -1){
 			perror("recvfrom() failed\n");
-			return EXIT_FAILURE;
+			free(buf);
+			free(client);
+			continue;
 		}
 
 		// create child process to handle communication
