@@ -74,7 +74,7 @@ void childFunction(unsigned int fd, char* buffer, struct sockaddr* addr, socklen
 		int readBytes = MAX_PACKET - 4;
 
 		// keeps track of current block number
-		short blockNumber = 1;
+		unsigned int blockNumber = 1;
 		// opcode for data block
 		short dataCode = 3;
 
@@ -108,7 +108,7 @@ void childFunction(unsigned int fd, char* buffer, struct sockaddr* addr, socklen
 				// wait for response, will be interrupted after 1 second
 				int bytes = recvfrom(fd, response, MAX_PACKET, 0, NULL, NULL);
 				// if recvfrom was interrupted, or the message received had the wrong block number, resend
-				if( (bytes == -1 && errno == EINTR) || ntohs((response[2]<<8)|response[3]) != blockNumber){
+				if( (bytes == -1 && errno == EINTR) || ntohs((*(unsigned short int*)buffer+1)) != blockNumber){
 					// increment number of times we have sent message
 					n++;
 					printf("No response, resending block %d\n", blockNumber);
@@ -182,13 +182,13 @@ void childFunction(unsigned int fd, char* buffer, struct sockaddr* addr, socklen
 			}
 
 			//bitmask to get opcode
-			opcode = opcode = ntohs((*(unsigned short int*)buffer));
+			opcode = ntohs((*(unsigned short int*)buffer));
 			if (opcode != 3){ //ERROR
 				perror("childFunction, Loop, != DATA");
 			}
 
 			//bitmask to get block number, resend ack if wrong block number
-			blocknum = ntohs((buffer[2]<<8)|buffer[3]);
+			blocknum = ntohs((*(unsigned short int*)buffer+1));
 			if (blocknum != blockcount + 1){ //Wrong Order
 				while(1){
 					((short*)ack)[0] = htons(2);
@@ -202,7 +202,7 @@ void childFunction(unsigned int fd, char* buffer, struct sockaddr* addr, socklen
 					// wait for response, will be interrupted after 1 second
 					int bytes = recvfrom(fd, buffer, MAX_PACKET, 0, NULL, NULL);
 					// if recvfrom was interrupted, or the message received had the wrong block number, resend
-					if( (bytes == -1 && errno == EINTR) || ntohs((buffer[2]<<8)|buffer[3]) != blockcount+1){
+					if( (bytes == -1 && errno == EINTR) || ntohs((*(unsigned short int*)buffer+1)) != blockcount+1){
 						// increment number of times we have sent message
 						n++;
 						// timeout after 10 seconds
