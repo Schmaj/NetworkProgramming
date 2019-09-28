@@ -27,16 +27,22 @@ void resendDataAlarm(int signo){
 }
 
 void childFunction(unsigned int fd, char* buffer, struct sockaddr* addr, socklen_t cli_len){
-	unsigned short int opcode = ntohs((buffer[0] << 8) | buffer[1]);
+	//unsigned short int opcode = ntohs((buffer[0] << 8) | buffer[1]);
+	unsigned short int opcode = ntohs((*(unsigned short int*)buffer));
 	char Filename[MAX_PACKET];
 
 	strcpy(Filename, &buffer[2]);
+
+	printf("In child, filename %s, opcode %u\n", Filename, opcode);
+
 	if (opcode == 1){ // READ
 		// open file requested by client
-		unsigned int file_d = open(Filename, O_RDONLY);
+		unsigned int file_d = open(Filename, O_RDWR);
 		if (file_d == -1){	//ERROR
 			perror("childFuntion, Read, Open");
 		}
+
+		printf("OPEN_SUCCESS\n");
 
 
 		// send first data packet, wait 1 second to resend anything, 10 seconds to timeout
@@ -64,14 +70,14 @@ void childFunction(unsigned int fd, char* buffer, struct sockaddr* addr, socklen
 
 		// send data, set alarms, wait
 		// initialize readBytes to value for data to continue to be transferred
-		int readBytes = MAX_PACKET;
+		int readBytes = MAX_PACKET - 4;
 
 		// keeps track of current block number
 		short blockNumber = 1;
 		// opcode for data block
 		short dataCode = 3;
 
-		while(readBytes == MAX_PACKET){
+		while(readBytes == MAX_PACKET - 4){
 			// casts buffer to short pointer to set first two bytes and second 2 bytes as opcode and blocknumber
 			// respectively, in network byte order
 			((short*)buffer)[0] = htons(dataCode);
@@ -79,6 +85,7 @@ void childFunction(unsigned int fd, char* buffer, struct sockaddr* addr, socklen
 
 			// buffer to hold acknowledgement
 			char* response = calloc(MAX_PACKET, sizeof(char));
+
 
 
 			// read the next 512 bytes of the file into the buffer
@@ -89,8 +96,10 @@ void childFunction(unsigned int fd, char* buffer, struct sockaddr* addr, socklen
 
 			while(1){
 
+				printf("PRE-SEND\n");
 				// send current block of data
 				sendto(fd, buffer, readBytes + 4, 0, addr, cli_len);
+				printf("POST-SEND\n");
 
 				// resend after 1 second
 				alarm(1);
@@ -98,11 +107,13 @@ void childFunction(unsigned int fd, char* buffer, struct sockaddr* addr, socklen
 				// wait for response, will be interrupted after 1 second
 				int bytes = recvfrom(fd, response, MAX_PACKET, 0, NULL, NULL);
 				// if recvfrom was interrupted, or the message received had the wrong block number, resend
-				if( (bytes == -1 && errno == EINTR) || ntohs((buffer[2]<<8)|buffer[3]) != blockNumber){
+				if( (bytes == -1 && errno == EINTR) || ntohs((response[2]<<8)|response[3]) != blockNumber){
 					// increment number of times we have sent message
 					n++;
+					printf("No response, resending block %d\n", blockNumber);
 					// timeout after 10 seconds
 					if(n == 10){
+						printf("Timeout occurred after 10 seconds\n");
 						// clean up resources and terminate
 						free(response);
 						response = NULL;
@@ -280,8 +291,15 @@ int main(int argc, char* argv[]){
 
 		int len;
 
+		printf("PRE-READ\n");
+
 		// wait until a request is received and store number of bytes read
 		int readBytes = recvfrom(fd, buf, MAX_PACKET, 0, (struct sockaddr*)client, (socklen_t*)&len);
+
+		printf("READ\n");
+
+		printf("client is at port %d\n", ntohs((*client).sin_port));
+
 
 		if(readBytes == -1){
 			perror("recvfrom() failed\n");
