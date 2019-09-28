@@ -182,7 +182,7 @@ void childFunction(unsigned int fd, char* buffer, struct sockaddr* addr, socklen
 			}
 
 			//bitmask to get opcode
-			opcode = ntohs((buffer[0] << 8) | buffer[1]);
+			opcode = opcode = ntohs((*(unsigned short int*)buffer));
 			if (opcode != 3){ //ERROR
 				perror("childFunction, Loop, != DATA");
 			}
