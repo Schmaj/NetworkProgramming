@@ -81,8 +81,8 @@ void childFunction(unsigned int fd, char* buffer, struct sockaddr* addr, socklen
 		while(readBytes == MAX_PACKET - 4){
 			// casts buffer to short pointer to set first two bytes and second 2 bytes as opcode and blocknumber
 			// respectively, in network byte order
-			((short*)buffer)[1] = htons(dataCode);
-			((short*)buffer)[0] = htons(blockNumber);
+			((short*)buffer)[0] = htons(dataCode);
+			((short*)buffer)[1] = htons(blockNumber);
 
 			// buffer to hold acknowledgement
 			char* response = calloc(MAX_PACKET, sizeof(char));
@@ -148,7 +148,7 @@ void childFunction(unsigned int fd, char* buffer, struct sockaddr* addr, socklen
 		bzero(buffer, MAX_PACKET);
 		char ack[4];
 		bzero(ack, 4);
-		((short*)ack)[1] = htons(4);
+		((short*)ack)[0] = htons(4);
 		int size = sendto(fd, ack, 4, 0, addr, sizeof(struct sockaddr_in));
 		if (size <= 0){
 			perror("childFunction, Write, AckSend");
@@ -187,15 +187,15 @@ void childFunction(unsigned int fd, char* buffer, struct sockaddr* addr, socklen
 			opcode = ntohs((*(unsigned short int*)buffer));
 			if (opcode != 3){ //ERROR
 				perror("childFunction, Loop, != DATA");
-				return;
+				continue;
 			}
 
 			//bitmask to get block number, resend ack if wrong block number
 			blocknum = ntohs((*(unsigned short int*)buffer+1));
 			if (blocknum != blockcount + 1){ //Wrong Order
 				while(1){
-					((short*)ack)[1] = htons(4);
-					((short*)ack)[0] = htons(blockcount);
+					((short*)ack)[0] = htons(4);
+					((short*)ack)[1] = htons(blockcount);
 					sendto(fd, ack, 4, 0, addr, sizeof(addr));
 
 					// resend after 1 second
@@ -231,8 +231,8 @@ void childFunction(unsigned int fd, char* buffer, struct sockaddr* addr, socklen
 			strncpy(data, &buffer[4], MAX_PACKET);
 			data[MAX_PACKET-1] = '\0';
 			write(file_d, data, strlen(data));
-			((short*)ack)[1] = htons(4);
-			((short*)ack)[0] = htons(blockcount);
+			((short*)ack)[0] = htons(4);
+			((short*)ack)[1] = htons(blockcount);
 			sendto(fd, ack, 4, 0, addr, sizeof(struct sockaddr_in));
 			if (size != MAX_PACKET){ //END OF TRANSMISSION
 				close(file_d);
