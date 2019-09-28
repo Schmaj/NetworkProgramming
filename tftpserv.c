@@ -304,6 +304,8 @@ int main(int argc, char* argv[]){
 			buf = NULL;
 			free(client);
 			client = NULL;
+
+			return 0;
 		}
 
 		// increment number of children
