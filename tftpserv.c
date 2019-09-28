@@ -148,11 +148,11 @@ void childFunction(unsigned int fd, char* buffer, struct sockaddr* addr, socklen
 		bzero(buffer, MAX_PACKET);
 		char ack[4];
 		bzero(ack, 4);
-		((short*)ack)[0] = 2;
-		int size = sendto(fd, htons(ack), 4, 0, addr, sizeof(struct sockaddr_in));
+		((short*)ack)[0] = htons(2);
+		int size = sendto(fd, ack, 4, 0, addr, sizeof(struct sockaddr_in));
 		if (size <= 0){
 			perror("childFunction, Write, AckSend");
-			continue;
+			return;
 		}
 
 		struct sigaction response;
@@ -187,7 +187,7 @@ void childFunction(unsigned int fd, char* buffer, struct sockaddr* addr, socklen
 			opcode = ntohs((*(unsigned short int*)buffer));
 			if (opcode != 3){ //ERROR
 				perror("childFunction, Loop, != DATA");
-				continue;
+				return;
 			}
 
 			//bitmask to get block number, resend ack if wrong block number
@@ -196,7 +196,7 @@ void childFunction(unsigned int fd, char* buffer, struct sockaddr* addr, socklen
 				while(1){
 					((short*)ack)[0] = htons(2);
 					((short*)ack)[1] = htons(blockcount);
-					sendto(fd, htons(ack), 4, 0, addr, sizeof(addr));
+					sendto(fd, ack, 4, 0, addr, sizeof(addr));
 
 					// resend after 1 second
 					alarm(1);
@@ -233,7 +233,7 @@ void childFunction(unsigned int fd, char* buffer, struct sockaddr* addr, socklen
 			write(file_d, data, strlen(data));
 			((short*)ack)[0] = htons(2);
 			((short*)ack)[1] = htons(blockcount);
-			sendto(fd, htons(ack), 4, 0, addr, sizeof(struct sockaddr_in));
+			sendto(fd, ack, 4, 0, addr, sizeof(struct sockaddr_in));
 			if (size != MAX_PACKET){ //END OF TRANSMISSION
 				close(file_d);
 				return;
