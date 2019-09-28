@@ -15,18 +15,21 @@
 #include <signal.h>
 #include <fcntl.h>
 
+#include <errno.h>
+
 #define MAX_PACKET 516
 
 int children = 0;
 
 
 void resendDataAlarm(int signo){
-
+	return;
 }
 
 void childFunction(unsigned int fd, char* buffer, struct sockaddr* addr, socklen_t cli_len){
 	unsigned short int opcode = ntohs((buffer[0] << 8) | buffer[1]);
 	char Filename[MAX_PACKET];
+
 	strcpy(Filename, &buffer[2]);
 	if (opcode == 1){ // READ
 		// open file requested by client
@@ -74,14 +77,50 @@ void childFunction(unsigned int fd, char* buffer, struct sockaddr* addr, socklen
 			((short*)buffer)[0] = htons(dataCode);
 			((short*)buffer)[1] = htons(blockNumber);
 
+			// buffer to hold acknowledgement
+			char* response = calloc(MAX_PACKET, sizeof(char));
+
 
 			// read the next 512 bytes of the file into the buffer
 			readBytes = read(file_d, buffer + 4, MAX_PACKET - 4);
 
-			// send current block of data
-			sendto(fd, buffer, readBytes, 0, addr, cli_len);
+			// counts number of times we resend messages
+			int n = 0;
 
-			
+			while(1){
+
+				// send current block of data
+				sendto(fd, buffer, readBytes, 0, addr, cli_len);
+
+				// resend after 1 second
+				alarm(1);
+
+				// wait for response, will be interrupted after 1 second
+				int bytes = recvfrom(fd, response, MAX_PACKET, 0, NULL, NULL);
+				// if recvfrom was interrupted, or the message received had the wrong block number, resend
+				if( (bytes == -1 && errno == EINTR) || ntohs((buffer[2]<<8)|buffer[3]) != blockNumber){
+					// increment number of times we have sent message
+					n++;
+					// timeout after 10 seconds
+					if(n == 10){
+						// clean up resources and terminate
+						free(response);
+						response == NULL;
+						close(file_d);
+						return;
+					}
+					continue;
+				}
+				// if no interrupt, break and continue
+				break;
+
+			}
+
+			// seen acknowledgement of data, move onto next block
+			blockNumber++;
+
+			free(response);
+			response = NULL;
 
 
 
@@ -254,7 +293,8 @@ int main(int argc, char* argv[]){
 				perror("ERROR with sigaction\n");
 				return EXIT_FAILURE;
 			}
-			childFunction(fd, buf, (struct sockaddr *)client, sizeof(client));
+
+			childFunction(fd, buf, (struct sockaddr*)client, len);
 
 			// close finished socket descriptor
 			close(fd);
@@ -279,7 +319,20 @@ int main(int argc, char* argv[]){
 		portMin++;
 		server.sin_port = htons(portMin);
 
+		if(portMin > portMax){
+			break;
+		}
 
+
+	}
+
+	int stat;
+	printf("%d children remaining\n", children);
+	// loop until all children have been collected
+	while(children > 0){
+		wait(&stat);
+		children--;
+		printf("caught child\n");
 	}
 
 }
