@@ -148,7 +148,7 @@ void childFunction(unsigned int fd, char* buffer, struct sockaddr* addr, socklen
 		bzero(buffer, MAX_PACKET);
 		char ack[4];
 		bzero(ack, 4);
-		((short*)ack)[1] = htons(2);
+		((short*)ack)[1] = htons(4);
 		int size = sendto(fd, ack, 4, 0, addr, sizeof(struct sockaddr_in));
 		if (size <= 0){
 			perror("childFunction, Write, AckSend");
@@ -194,7 +194,7 @@ void childFunction(unsigned int fd, char* buffer, struct sockaddr* addr, socklen
 			blocknum = ntohs((*(unsigned short int*)buffer+1));
 			if (blocknum != blockcount + 1){ //Wrong Order
 				while(1){
-					((short*)ack)[1] = htons(2);
+					((short*)ack)[1] = htons(4);
 					((short*)ack)[0] = htons(blockcount);
 					sendto(fd, ack, 4, 0, addr, sizeof(addr));
 
@@ -231,7 +231,7 @@ void childFunction(unsigned int fd, char* buffer, struct sockaddr* addr, socklen
 			strncpy(data, &buffer[4], MAX_PACKET);
 			data[MAX_PACKET-1] = '\0';
 			write(file_d, data, strlen(data));
-			((short*)ack)[1] = htons(2);
+			((short*)ack)[1] = htons(4);
 			((short*)ack)[0] = htons(blockcount);
 			sendto(fd, ack, 4, 0, addr, sizeof(struct sockaddr_in));
 			if (size != MAX_PACKET){ //END OF TRANSMISSION
