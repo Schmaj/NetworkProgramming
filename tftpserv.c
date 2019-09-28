@@ -64,20 +64,20 @@ void childFunction(unsigned int fd, char* buffer, struct sockaddr* addr){
 				sendto(fd, ack, 4, 0, addr, sizeof(addr));
 			}
 
-			if (size == MAX_PACKET){ //First/Middle Data Packet
-				blockcount++;
-				char data[MAX_PACKET];
-				bzero(data, MAX_PACKET);
-				strncpy(data, &buffer[4], MAX_PACKET);
-				data[MAX_PACKET-1] = '\0';
-				write(file_d, data, strlen(data));
-				size = sendto(fd, ack, 4, 0, addr, sizeof(addr));
-				continue;
-			
-			} else { //End Data Packet
-				blockcount++;
-
+			blockcount++;
+			char data[MAX_PACKET];
+			bzero(data, MAX_PACKET);
+			strncpy(data, &buffer[4], MAX_PACKET);
+			data[MAX_PACKET-1] = '\0';
+			write(file_d, data, strlen(data));
+			((short*)ack)[0] = htons(2);
+			((short*)ack)[1] = htons(blockcount);
+			endto(fd, ack, 4, 0, addr, sizeof(addr));
+			if (size == MAX_PACKET){ //END OF TRANSMISSION
+				
 			}
+			continue;			
+
 		}
 
 	}
