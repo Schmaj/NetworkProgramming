@@ -73,10 +73,10 @@ void childFunction(unsigned int fd, char* buffer, struct sockaddr* addr){
 			((short*)ack)[0] = htons(2);
 			((short*)ack)[1] = htons(blockcount);
 			endto(fd, ack, 4, 0, addr, sizeof(addr));
-			if (size == MAX_PACKET){ //END OF TRANSMISSION
-				
-			}
-			continue;			
+			if (size != MAX_PACKET){ //END OF TRANSMISSION
+				close(file_d);
+				return;
+			}		
 
 		}
 
