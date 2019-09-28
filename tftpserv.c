@@ -21,6 +21,7 @@
 
 int children = 0;
 
+
 void resendDataAlarm(int signo){
 	return;
 }
@@ -28,7 +29,7 @@ void resendDataAlarm(int signo){
 void childFunction(unsigned int fd, char* buffer, struct sockaddr* addr, socklen_t cli_len){
 	unsigned short int opcode = ntohs((buffer[0] << 8) | buffer[1]);
 	char Filename[MAX_PACKET];
-	char Mode[MAX_PACKET];
+
 	strcpy(Filename, &buffer[2]);
 	if (opcode == 1){ // READ
 		// open file requested by client
@@ -36,6 +37,7 @@ void childFunction(unsigned int fd, char* buffer, struct sockaddr* addr, socklen
 		if (file_d == -1){	//ERROR
 			perror("childFuntion, Read, Open");
 		}
+
 
 		// send first data packet, wait 1 second to resend anything, 10 seconds to timeout
 		// error if packet from wrong tid, send error packet and ignore
@@ -124,12 +126,54 @@ void childFunction(unsigned int fd, char* buffer, struct sockaddr* addr, socklen
 
 		}
 
-
-
 	} else if (opcode == 2) { //WRITE
 		unsigned int file_d = open(Filename, O_CREAT | O_WRONLY);
 		if (file_d == -1){ //ERROR
 			perror("childFunction, Write, Open");
+		}
+		bzero(buffer, MAX_PACKET);
+		char ack[4];
+		bzero(ack, 4);
+		((short*)ack)[0] = htons(2);
+		int size = sendto(fd, ack, 4, 0, addr, sizeof(addr));
+		if (size <= 0){
+			perror("childFunction, Write, AckSend");
+		}
+		unsigned int blockcount = 0;
+		unsigned int blocknum;
+		while(1){
+
+			size = recvfrom(fd, buffer, MAX_PACKET, 0, addr, (socklen_t *)sizeof(addr));
+			if (size <= 0){
+				perror("childFunction, Loop, recvfrom");
+			}
+
+			opcode = ntohs((buffer[0] << 8) | buffer[1]);
+			if (opcode != 3){ //ERROR
+				perror("childFunction, Loop, != DATA");
+			}
+
+			blocknum = ntohs((buffer[2]<<8)|buffer[3]);
+			if (blocknum != blockcount + 1){ //Wrong Order
+				((short*)ack)[0] = htons(2);
+				((short*)ack)[1] = htons(blockcount);
+				sendto(fd, ack, 4, 0, addr, sizeof(addr));
+			}
+
+			blockcount++;
+			char data[MAX_PACKET];
+			bzero(data, MAX_PACKET);
+			strncpy(data, &buffer[4], MAX_PACKET);
+			data[MAX_PACKET-1] = '\0';
+			write(file_d, data, strlen(data));
+			((short*)ack)[0] = htons(2);
+			((short*)ack)[1] = htons(blockcount);
+			sendto(fd, ack, 4, 0, addr, sizeof(addr));
+			if (size != MAX_PACKET){ //END OF TRANSMISSION
+				close(file_d);
+				return;
+			}		
+
 		}
 
 	}
@@ -249,6 +293,7 @@ int main(int argc, char* argv[]){
 				perror("ERROR with sigaction\n");
 				return EXIT_FAILURE;
 			}
+
 			childFunction(fd, buf, (struct sockaddr*)client, len);
 
 			// close finished socket descriptor
