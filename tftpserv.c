@@ -326,4 +326,13 @@ int main(int argc, char* argv[]){
 
 	}
 
+	int stat;
+	printf("%d children remaining\n", children);
+	// loop until all children have been collected
+	while(children > 0){
+		wait(&stat);
+		children--;
+		printf("caught child\n");
+	}
+
 }
