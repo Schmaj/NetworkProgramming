@@ -152,6 +152,7 @@ void childFunction(unsigned int fd, char* buffer, struct sockaddr* addr, socklen
 		int size = sendto(fd, ack, 4, 0, addr, sizeof(struct sockaddr_in));
 		if (size <= 0){
 			perror("childFunction, Write, AckSend");
+			return;
 		}
 
 		struct sigaction response;
@@ -179,12 +180,14 @@ void childFunction(unsigned int fd, char* buffer, struct sockaddr* addr, socklen
 			//Error if recvfrom failed
 			if (size <= 0){
 				perror("childFunction, Loop, recvfrom");
+				return;
 			}
 
 			//bitmask to get opcode
 			opcode = ntohs((*(unsigned short int*)buffer));
 			if (opcode != 3){ //ERROR
 				perror("childFunction, Loop, != DATA");
+				return;
 			}
 
 			//bitmask to get block number, resend ack if wrong block number
