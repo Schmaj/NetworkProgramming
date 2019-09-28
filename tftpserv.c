@@ -31,6 +31,7 @@ void childFunction(unsigned int fd, char* buffer, struct sockaddr* addr, socklen
 	char Filename[MAX_PACKET];
 
 	strcpy(Filename, &buffer[2]);
+
 	if (opcode == 1){ // READ
 		// open file requested by client
 		unsigned int file_d = open(Filename, O_RDONLY);
@@ -142,11 +143,27 @@ void childFunction(unsigned int fd, char* buffer, struct sockaddr* addr, socklen
 			perror("childFunction, Write, AckSend");
 		}
 
+		struct sigaction response;
+		// specify function to be called as handler
+		response.sa_handler = &resendDataAlarm;
+		// initialize sa_mask to an empty set
+		sigemptyset(&(response.sa_mask));
+		// no flags
+		response.sa_flags = 0; 
+
+		// sets new action for receiving alarm signal
+		int rc = sigaction(SIGALRM, &response, NULL);
+		if(rc < 0){
+			printf("ERROR with sigaction\n");
+			return;
+		}
+
+		unsigned short int n = 0;
 		unsigned int blockcount = 0;
 		unsigned int blocknum;
 		while(1){
 			//wait for data packet
-			size = recvfrom(fd, buffer, MAX_PACKET, 0, addr, (socklen_t *)sizeof(addr));
+			size = recvfrom(fd, buffer, MAX_PACKET, 0, NULL, NULL);
 
 			//Error if recvfrom failed
 			if (size <= 0){
@@ -162,14 +179,37 @@ void childFunction(unsigned int fd, char* buffer, struct sockaddr* addr, socklen
 			//bitmask to get block number, resend ack if wrong block number
 			blocknum = ntohs((buffer[2]<<8)|buffer[3]);
 			if (blocknum != blockcount + 1){ //Wrong Order
-				((short*)ack)[0] = htons(2);
-				((short*)ack)[1] = htons(blockcount);
-				sendto(fd, ack, 4, 0, addr, sizeof(addr));
-				continue;
+				while(1){
+					((short*)ack)[0] = htons(2);
+					((short*)ack)[1] = htons(blockcount);
+					sendto(fd, ack, 4, 0, addr, sizeof(addr));
+
+					// resend after 1 second
+					alarm(1);
+
+					bzero(buffer, MAX_PACKET);
+					// wait for response, will be interrupted after 1 second
+					int bytes = recvfrom(fd, buffer, MAX_PACKET, 0, NULL, NULL);
+					// if recvfrom was interrupted, or the message received had the wrong block number, resend
+					if( (bytes == -1 && errno == EINTR) || ntohs((buffer[2]<<8)|buffer[3]) != blockcount+1){
+						// increment number of times we have sent message
+						n++;
+						// timeout after 10 seconds
+						if(n == 10){
+							// clean up resources and terminate
+							close(file_d);
+							return;
+						}
+						continue;
+					}
+					// if no interrupt, break and continue
+					break;
+				}
 			}
 
-			//increment block counter
+			//increment block counter, reset resend count
 			blockcount++;
+			n = 0;
 
 			//zero buffer, write data, send ACK
 			char data[MAX_PACKET];
