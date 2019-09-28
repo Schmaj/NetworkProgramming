@@ -225,7 +225,7 @@ int main(int argc, char* argv[]){
 
 	// check number of arguments
 	if(argc < 2){
-		printf("Insufficient arguemnts\n");
+		printf("Insufficient arguments\n");
 		printf("Usage: ./serv.out portMin portMax\n");
 	}
 
