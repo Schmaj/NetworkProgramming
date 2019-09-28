@@ -149,7 +149,7 @@ void childFunction(unsigned int fd, char* buffer, struct sockaddr* addr, socklen
 		char ack[4];
 		bzero(ack, 4);
 		((short*)ack)[0] = htons(2);
-		int size = sendto(fd, ack, 4, 0, addr, sizeof(addr));
+		int size = sendto(fd, ack, 4, 0, addr, sizeof(struct sockaddr_in));
 		if (size <= 0){
 			perror("childFunction, Write, AckSend");
 		}
