@@ -27,7 +27,6 @@ void resendDataAlarm(int signo){
 void childFunction(unsigned int fd, char* buffer, sockaddr* addr, socklen_t cli_len){
 	unsigned short int opcode = ntohs((buffer[0] << 8) | buffer[1]);
 	char Filename[MAX_PACKET];
-	char Mode[MAX_PACKET];
 	strcpy(Filename, &buffer[2]);
 	if (opcode == 1){ // READ
 		// open file requested by client
