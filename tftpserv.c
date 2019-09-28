@@ -46,10 +46,12 @@ void childFunction(unsigned int fd, char* buffer, struct sockaddr* addr){
 		unsigned int blockcount = 0;
 		unsigned int blocknum;
 		while(1){
+
 			size = recvfrom(fd, buffer, MAX_PACKET, 0, addr, (socklen_t *)sizeof(addr));
 			if (size <= 0){
 				perror("childFunction, Loop, recvfrom");
 			}
+
 			opcode = ntohs((buffer[0] << 8) | buffer[1]);
 			if (opcode != 3){ //ERROR
 				perror("childFunction, Loop, != DATA");
@@ -64,8 +66,14 @@ void childFunction(unsigned int fd, char* buffer, struct sockaddr* addr){
 
 			if (size == MAX_PACKET){ //First/Middle Data Packet
 				blockcount++;
-				
-
+				char data[MAX_PACKET];
+				bzero(data, MAX_PACKET);
+				strncpy(data, &buffer[4], MAX_PACKET);
+				data[MAX_PACKET-1] = '\0';
+				write(file_d, data, strlen(data));
+				size = sendto(fd, ack, 4, 0, addr, sizeof(addr));
+				continue;
+			
 			} else { //End Data Packet
 				blockcount++;
 
