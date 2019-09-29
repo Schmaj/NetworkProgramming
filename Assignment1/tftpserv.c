@@ -243,7 +243,7 @@ void childFunction(unsigned int fd, char* buffer, struct sockaddr* addr, socklen
 			memcpy(data, &buffer[4], MAX_PACKET-4);
 			data[MAX_PACKET] = '\0';
 			if (size != MAX_PACKET){ //END OF TRANSMISSION
-				write(file_d, data, size-5);
+				write(file_d, data, size-4);
 				((short*)ack)[0] = htons(4);
 				((short*)ack)[1] = htons(blockcount);
 				sendto(fd, ack, 4, 0, addr, sizeof(struct sockaddr_in));
@@ -361,6 +361,7 @@ int main(int argc, char* argv[]){
 
 		if(readBytes == -1){
 			perror("recvfrom() failed\n");
+			printf("recvfrom() failed: errno %d\n", errno);
 			// clean up resources and try again
 			free(buf);
 			free(client);
