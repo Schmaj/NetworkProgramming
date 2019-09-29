@@ -107,6 +107,8 @@ void childFunction(unsigned int fd, char* buffer, struct sockaddr* addr, socklen
 
 				// wait for response, will be interrupted after 1 second
 				int bytes = recvfrom(fd, response, MAX_PACKET, 0, NULL, NULL);
+
+				alarm(0);
 				// if recvfrom was interrupted, or the message received had the wrong block number, resend
 				if( (bytes == -1 && errno == EINTR) || ntohs((*(unsigned short int*)buffer+1)) != blockNumber){
 					// increment number of times we have sent message
@@ -191,12 +193,15 @@ void childFunction(unsigned int fd, char* buffer, struct sockaddr* addr, socklen
 			}
 
 			//bitmask to get block number, resend ack if wrong block number
-			blocknum = ntohs((*(unsigned short int*)buffer+1));
+			blocknum = ntohs((*(((unsigned short int*)buffer)+1)));
+			printf("Received block %u\n", blocknum);
 			if (blocknum != blockcount + 1){ //Wrong Order
+				printf("ENTER IF\n");
 				while(1){
+					printf("NEW ITERATION\n");
 					((short*)ack)[0] = htons(4);
 					((short*)ack)[1] = htons(blockcount);
-					sendto(fd, ack, 4, 0, addr, sizeof(addr));
+					sendto(fd, ack, 4, 0, addr, sizeof(struct sockaddr_in));
 
 					// resend after 1 second
 					alarm(1);
@@ -204,6 +209,8 @@ void childFunction(unsigned int fd, char* buffer, struct sockaddr* addr, socklen
 					bzero(buffer, MAX_PACKET);
 					// wait for response, will be interrupted after 1 second
 					int bytes = recvfrom(fd, buffer, MAX_PACKET, 0, NULL, NULL);
+
+					alarm(0);
 					// if recvfrom was interrupted, or the message received had the wrong block number, resend
 					if( (bytes == -1 && errno == EINTR) || ntohs((*(unsigned short int*)buffer+1)) != blockcount+1){
 						// increment number of times we have sent message
@@ -334,6 +341,7 @@ int main(int argc, char* argv[]){
 
 		int len;
 
+reRead:
 		printf("PRE-READ\n");
 
 		// wait until a request is received and store number of bytes read
@@ -346,9 +354,7 @@ int main(int argc, char* argv[]){
 
 		if(readBytes == -1){
 			perror("recvfrom() failed\n");
-			free(buf);
-			free(client);
-			continue;
+			goto reRead;
 		}
 
 		// create child process to handle communication
