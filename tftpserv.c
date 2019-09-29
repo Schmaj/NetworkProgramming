@@ -22,6 +22,7 @@
 int children = 0;
 
 
+// function does not do anything, just allows signal to interrupt a blocking read without terminating the process
 void resendDataAlarm(int signo){
 	return;
 }
@@ -345,7 +346,6 @@ int main(int argc, char* argv[]){
 
 		int len;
 
-reRead:
 		printf("PRE-READ\n");
 
 		// wait until a request is received and store number of bytes read
@@ -358,7 +358,11 @@ reRead:
 
 		if(readBytes == -1){
 			perror("recvfrom() failed\n");
-			goto reRead;
+			// clean up resources and try again
+			free(buf);
+			free(client);
+			close(fd);
+			continue;
 		}
 
 		// create child process to handle communication
