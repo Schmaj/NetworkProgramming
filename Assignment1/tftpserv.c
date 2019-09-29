@@ -19,11 +19,46 @@
 
 #define MAX_PACKET 516
 
+// flag to show whether SIGINT has been received and process
+// should terminate
+int term = 0;
+
+// number of child processes spawned
 int children = 0;
 
 
+// cleans up child resources
+void terminate(){
+	printf("Exiting program\n");
+	int stat;
+	printf("%d children remaining\n", children);
+	// loop until all children have been collected
+	while(children > 0){
+		wait(&stat);
+		children--;
+		printf("caught child\n");
+	}
+	exit(0);
+}
+
+// function to be called by parent on receipt of interrupt signal
+// sets term to 1, indicating that as long as there are no children that
+// need to spawn (handled by blocking on recvfrom waiting for an alarm),
+// process may collect children and terminate  
+void sig_int_handler(int signo){
+	printf("Kill signal received\n");
+	term = 1;
+	return;
+}
+
 // function does not do anything, just allows signal to interrupt a blocking read without terminating the process
 void resendDataAlarm(int signo){
+
+	// if alarm goes off after interrupt signal has been received in parent, there are no requests waiting and
+	// parent may wait for children
+	if(term == 1){
+		terminate();
+	}
 	return;
 }
 
@@ -260,33 +295,14 @@ void childFunction(unsigned int fd, char* buffer, struct sockaddr* addr, socklen
 	return;
 }
 
-void terminate(){
-	printf("Exiting program\n");
-	int stat;
-	printf("%d children remaining\n", children);
-	// loop until all children have been collected
-	while(children > 0){
-		wait(&stat);
-		children--;
-		printf("caught child\n");
-	}
-	exit(0);
-}
 
-void sig_interrupt(int signo){
-	// do the things
-
-	printf("Caught interrupt\n");
-
-	terminate();
-}
 
 int main(int argc, char* argv[]){
 
 	// struct to hold desired sigaction
 	struct sigaction sigintResponse;
 	// specify function to be called as handler
-	sigintResponse.sa_handler = &sig_interrupt;
+	sigintResponse.sa_handler = &sig_int_handler;
 	// initialize sa_mask to an empty set
 	sigemptyset(&(sigintResponse.sa_mask));
 	// no flags
@@ -294,6 +310,15 @@ int main(int argc, char* argv[]){
 
 	// sets new action for receiving interrupt signal
 	int rc = sigaction(SIGINT, &sigintResponse, NULL);
+	if(rc < 0){
+		perror("ERROR with sigaction\n");
+		return EXIT_FAILURE;
+	}
+
+	// set response for alarm signal
+	sigintResponse.sa_handler = &resendDataAlarm;
+
+	rc = sigaction(SIGALRM, &sigintResponse, NULL);
 	if(rc < 0){
 		perror("ERROR with sigaction\n");
 		return EXIT_FAILURE;
@@ -354,8 +379,14 @@ int main(int argc, char* argv[]){
 
 		printf("PRE-READ\n");
 
+		// sets alarm for 2 seconds
+		alarm(2);
+
 		// wait until a request is received and store number of bytes read
 		int readBytes = recvfrom(fd, buf, MAX_PACKET, 0, (struct sockaddr*)client, (socklen_t*)&len);
+
+		// cancel alarm if it did not go off
+		alarm(0);
 
 		printf("READ\n");
 
@@ -388,6 +419,9 @@ int main(int argc, char* argv[]){
 				perror("ERROR with sigaction\n");
 				return EXIT_FAILURE;
 			}
+
+			// if term was 1, set to 0 in child so it does not try to clean up children
+			term = 0;
 
 			childFunction(fd, buf, (struct sockaddr*)client, len);
 
