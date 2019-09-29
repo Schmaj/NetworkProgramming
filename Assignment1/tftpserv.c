@@ -325,6 +325,9 @@ int main(int argc, char* argv[]){
 
 	while(1){
 
+		// allow any ip address
+		server.sin_addr.s_addr = htonl(INADDR_ANY);
+
 		// file descriptor referring to a socket listening for the next UDP client
 		// creates a socket, IPv4, UDP, default protocol
 		int fd = socket(AF_INET, SOCK_DGRAM, 0);
