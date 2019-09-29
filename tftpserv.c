@@ -235,8 +235,8 @@ void childFunction(unsigned int fd, char* buffer, struct sockaddr* addr, socklen
 			//zero buffer, write data, send ACK
 			char data[MAX_PACKET];
 			bzero(data, MAX_PACKET);
-			strncpy(data, &buffer[4], MAX_PACKET);
-			data[MAX_PACKET-1] = '\0';
+			strncpy(data, &buffer[4], MAX_PACKET-4);
+			data[MAX_PACKET] = '\0';
 			write(file_d, data, strlen(data));
 			((short*)ack)[0] = htons(4);
 			((short*)ack)[1] = htons(blockcount);
