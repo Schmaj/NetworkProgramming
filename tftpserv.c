@@ -196,7 +196,7 @@ void childFunction(unsigned int fd, char* buffer, struct sockaddr* addr, socklen
 				while(1){
 					((short*)ack)[0] = htons(4);
 					((short*)ack)[1] = htons(blockcount);
-					sendto(fd, ack, 4, 0, addr, sizeof(addr));
+					sendto(fd, ack, 4, 0, addr, sizeof(struct sockaddr_in));
 
 					// resend after 1 second
 					alarm(1);
