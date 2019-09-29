@@ -110,7 +110,7 @@ void childFunction(unsigned int fd, char* buffer, struct sockaddr* addr, socklen
 
 				alarm(0);
 				// if recvfrom was interrupted, or the message received had the wrong block number, resend
-				if( (bytes == -1 && errno == EINTR) || ntohs((*(unsigned short int*)buffer+1)) != blockNumber){
+				if( (bytes == -1 && errno == EINTR) || ntohs((*(((unsigned short int*)response)+1))) != blockNumber){
 					// increment number of times we have sent message
 					n++;
 					printf("No response, resending block %d\n", blockNumber);
