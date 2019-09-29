@@ -176,6 +176,7 @@ void childFunction(unsigned int fd, char* buffer, struct sockaddr* addr, socklen
 		unsigned int blockcount = 0;
 		unsigned int blocknum;
 		while(1){
+			bzero(buffer, MAX_PACKET);
 			//wait for data packet
 			size = recvfrom(fd, buffer, MAX_PACKET, 0, NULL, NULL);
 
@@ -208,11 +209,11 @@ void childFunction(unsigned int fd, char* buffer, struct sockaddr* addr, socklen
 
 					bzero(buffer, MAX_PACKET);
 					// wait for response, will be interrupted after 1 second
-					int bytes = recvfrom(fd, buffer, MAX_PACKET, 0, NULL, NULL);
+					size = recvfrom(fd, buffer, MAX_PACKET, 0, NULL, NULL);
 
 					alarm(0);
 					// if recvfrom was interrupted, or the message received had the wrong block number, resend
-					if( (bytes == -1 && errno == EINTR) || ntohs((*(unsigned short int*)buffer+1)) != blockcount+1){
+					if( (size == -1 && errno == EINTR) || ntohs((*(unsigned short int*)buffer+1)) != blockcount+1){
 						// increment number of times we have sent message
 						n++;
 						// timeout after 10 seconds
@@ -235,8 +236,8 @@ void childFunction(unsigned int fd, char* buffer, struct sockaddr* addr, socklen
 			//zero buffer, write data, send ACK
 			char data[MAX_PACKET];
 			bzero(data, MAX_PACKET);
-			strncpy(data, &buffer[4], MAX_PACKET-4);
-			data[MAX_PACKET-4] = '\0';
+			memcpy(data, &buffer[4], MAX_PACKET-4);
+			data[MAX_PACKET] = '\0';
 			write(file_d, data, strlen(data));
 			((short*)ack)[0] = htons(4);
 			((short*)ack)[1] = htons(blockcount);
