@@ -347,7 +347,7 @@ int main(int argc, char* argv[]){
 		// struct to hold client ip address
 		struct sockaddr_in* client = calloc(1, sizeof(struct sockaddr_in));
 
-		int len;
+		unsigned int len = sizeof(struct sockaddr_in);
 
 		printf("PRE-READ\n");
 
