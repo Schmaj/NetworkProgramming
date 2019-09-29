@@ -379,14 +379,18 @@ int main(int argc, char* argv[]){
 
 		printf("PRE-READ\n");
 
-		// sets alarm for 2 seconds
-		alarm(2);
+		// sets alarm for 2 seconds if interrupt has been given
+		if(term == 1){
+			alarm(2);
+		}
 
 		// wait until a request is received and store number of bytes read
 		int readBytes = recvfrom(fd, buf, MAX_PACKET, 0, (struct sockaddr*)client, (socklen_t*)&len);
 
 		// cancel alarm if it did not go off
-		alarm(0);
+		if(term == 1){
+			alarm(0);
+		}
 
 		printf("READ\n");
 
