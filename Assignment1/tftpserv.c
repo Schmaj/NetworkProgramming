@@ -181,7 +181,7 @@ void childFunction(unsigned int fd, char* buffer, struct sockaddr* addr, socklen
 
 	} else if (opcode == 2) { //WRITE
 		//Open file to write
-		unsigned int file_d = open(Filename, O_CREAT | O_WRONLY, 0777);
+		unsigned int file_d = open(Filename, O_CREAT | O_WRONLY | O_TRUNC, 0777);
 		if (file_d == -1){ //ERROR
 			perror("childFunction, Write, Open");
 		}
