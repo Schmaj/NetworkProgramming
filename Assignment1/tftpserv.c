@@ -141,6 +141,9 @@ void childFunction(unsigned int fd, char* buffer, struct sockaddr* addr, socklen
 
 		}
 
+		// close file being read
+		close(file_d);
+
 	} else if (opcode == 2) { //WRITE
 		//Open file to write
 		unsigned int file_d = open(Filename, O_CREAT | O_WRONLY);
