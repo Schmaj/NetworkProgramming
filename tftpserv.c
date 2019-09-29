@@ -176,6 +176,7 @@ void childFunction(unsigned int fd, char* buffer, struct sockaddr* addr, socklen
 		unsigned int blockcount = 0;
 		unsigned int blocknum;
 		while(1){
+			bzero(buffer, MAX_PACKET);
 			//wait for data packet
 			size = recvfrom(fd, buffer, MAX_PACKET, 0, NULL, NULL);
 
