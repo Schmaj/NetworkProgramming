@@ -21,7 +21,10 @@
 
 // flag to show whether SIGINT has been received and process
 // should terminate
-int term = 0;
+// volatile memory because its value is changed due to a signal handler, and a while
+// loop depends on its value, which will not change during normal execution of the loop,
+// want to avoid compiler optimizations not rechecking its value, causing an infinite loop
+volatile int term = 0;
 
 // number of child processes spawned
 int children = 0;
@@ -45,7 +48,7 @@ void terminate(){
 // sets term to 1, indicating that as long as there are no children that
 // need to spawn (handled by blocking on recvfrom waiting for an alarm),
 // process may collect children and terminate  
-void sig_int_handler(int signo){
+void sig_int_handler_child(int signo){
 	printf("Kill signal received\n");
 	term = 1;
 	return;
@@ -53,256 +56,336 @@ void sig_int_handler(int signo){
 
 // function does not do anything, just allows signal to interrupt a blocking read without terminating the process
 void resendDataAlarm(int signo){
-
-	// if alarm goes off after interrupt signal has been received in parent, there are no requests waiting and
-	// parent may wait for children
-	if(term == 1){
-		terminate();
-	}
 	return;
 }
 
 void childFunction(unsigned int fd, char* buffer, struct sockaddr* addr, socklen_t cli_len){
-	//unsigned short int opcode = ntohs((buffer[0] << 8) | buffer[1]);
-	unsigned short int opcode = ntohs((*(unsigned short int*)buffer));
-	char Filename[MAX_PACKET];
 
-	strcpy(Filename, &buffer[2]);
+	struct sigaction response;
+	// specify function to be called as handler
+	response.sa_handler = &resendDataAlarm;
+	// initialize sa_mask to an empty set
+	sigemptyset(&(response.sa_mask));
+	// no flags
+	response.sa_flags = 0; 
 
-	printf("In child, filename %s, opcode %u\n", Filename, opcode);
+	// sets new action for receiving alarm signal
+	int rc = sigaction(SIGALRM, &response, NULL);
+	if(rc < 0){
+		printf("ERROR with sigaction\n");
+		return;
+	}
 
+	// variable to represent that the connection timed out, or process would which to return for other
+	// reason.  However, the process must continue to loop waiting for new connections, so when this variable is
+	// nonzero, the process will break to its outermost loop
+	int fullBreak = 0;
 
-	if (opcode == 1){ // READ
-		// open file requested by client
-		unsigned int file_d = open(Filename, O_RDWR);
-		if (file_d == -1){	//ERROR
-			perror("childFuntion, Read, Open");
-		}
+	// simple variable to change behavior of first iteration through the following loop
+	int firstRun = 0;
 
-		printf("OPEN_SUCCESS\n");
+	// loop until termination signal
+	while(term == 0){
 
+		// reset fullBreak to 0, just in case
+		fullBreak = 0;
 
-		// send first data packet, wait 1 second to resend anything, 10 seconds to timeout
-		// error if packet from wrong tid, send error packet and ignore
-
-		// data packets of the form 2 byte opcode, 2 byte block number, n byte data
-		// ACk packets of the form 2 byte opcode, 2 byte block number
-		
-		// set desired SIGALRM behavior for resending data
-		// struct to hold desired sigaction
-		struct sigaction response;
-		// specify function to be called as handler
-		response.sa_handler = &resendDataAlarm;
-		// initialize sa_mask to an empty set
-		sigemptyset(&(response.sa_mask));
-		// no flags
-		response.sa_flags = 0; 
-
-		// sets new action for receiving alarm signal
-		int rc = sigaction(SIGALRM, &response, NULL);
-		if(rc < 0){
-			printf("ERROR with sigaction\n");
-			return;
-		}
-
-		// send data, set alarms, wait
-		// initialize readBytes to value for data to continue to be transferred
-		int readBytes = MAX_PACKET - 4;
-
-		// keeps track of current block number
-		unsigned int blockNumber = 1;
-		// opcode for data block
-		short dataCode = 3;
-
-		while(readBytes == MAX_PACKET - 4){
-			// casts buffer to short pointer to set first two bytes and second 2 bytes as opcode and blocknumber
-			// respectively, in network byte order
-			((short*)buffer)[0] = htons(dataCode);
-			((short*)buffer)[1] = htons(blockNumber);
-
-			// buffer to hold acknowledgement
-			char* response = calloc(MAX_PACKET, sizeof(char));
+		// subsequent iterations through loop
+		if(firstRun != 0){
 
 
-
-			// read the next 512 bytes of the file into the buffer
-			readBytes = read(file_d, buffer + 4, MAX_PACKET - 4);
-
-			// counts number of times we resend messages
-			int n = 0;
-
+			// loop in case of error
 			while(1){
+				// zero out buffer and client address
+				bzero(buffer, MAX_PACKET);
+				bzero(addr, cli_len);
 
-				printf("PRE-SEND\n");
-				// send current block of data
-				sendto(fd, buffer, readBytes + 4, 0, addr, cli_len);
-				printf("POST-SEND\n");
+				cli_len = sizeof(struct sockaddr_in);
 
-				// resend after 1 second
+				// set 1 second alarm in case of weird race conditions with term signal, don't
+				// block forever on read
 				alarm(1);
 
-				// wait for response, will be interrupted after 1 second
-				int bytes = recvfrom(fd, response, MAX_PACKET, 0, NULL, NULL);
+				// stores number of bytes read
+				int br = recvfrom(fd, buffer, MAX_PACKET, 0, addr, &cli_len);
 
+				// cancel alarm if it did not go off
 				alarm(0);
-				// if recvfrom was interrupted, or the message received had the wrong block number, resend
-				if( (bytes == -1 && errno == EINTR) || ntohs((*(((unsigned short int*)response)+1))) != blockNumber){
-					// increment number of times we have sent message
-					n++;
-					printf("No response, resending block %d\n", blockNumber);
-					// timeout after 10 seconds
-					if(n == 10){
-						printf("Timeout occurred after 10 seconds\n");
-						// clean up resources and terminate
-						free(response);
-						response = NULL;
-						close(file_d);
+
+				// error
+				if(br == -1){
+					//printf("recvfrom() failed child, errno %d\n", errno);
+
+					// if error was interrupt, term may be set and should be checked to not
+					// block indefinitely
+					if(term == 1){
 						return;
 					}
+
+					// try to read bytes again
 					continue;
+
 				}
-				// if no interrupt, break and continue
+
+				// if bytes correctly received, break out of loop and handle request
 				break;
 
 			}
 
-			// seen acknowledgement of data, move onto next block
-			blockNumber++;
-
-			free(response);
-			response = NULL;
-
-
 
 		}
 
-		// close file being read
-		close(file_d);
+		//unsigned short int opcode = ntohs((buffer[0] << 8) | buffer[1]);
+		unsigned short int opcode = ntohs((*(unsigned short int*)buffer));
+		char Filename[MAX_PACKET];
 
-	} else if (opcode == 2) { //WRITE
-		//Open file to write
-		unsigned int file_d = open(Filename, O_CREAT | O_WRONLY | O_TRUNC, 0777);
-		if (file_d == -1){ //ERROR
-			perror("childFunction, Write, Open");
-		}
-		//Zero buffer and send an ACK back
-		bzero(buffer, MAX_PACKET);
-		char ack[4];
-		bzero(ack, 4);
-		((short*)ack)[0] = htons(4);
-		int size = sendto(fd, ack, 4, 0, addr, sizeof(struct sockaddr_in));
-		if (size <= 0){
-			perror("childFunction, Write, AckSend");
-			return;
-		}
+		strcpy(Filename, &buffer[2]);
 
-		struct sigaction response;
-		// specify function to be called as handler
-		response.sa_handler = &resendDataAlarm;
-		// initialize sa_mask to an empty set
-		sigemptyset(&(response.sa_mask));
-		// no flags
-		response.sa_flags = 0; 
+		printf("In child, filename %s, opcode %u\n", Filename, opcode);
 
-		// sets new action for receiving alarm signal
-		int rc = sigaction(SIGALRM, &response, NULL);
-		if(rc < 0){
-			printf("ERROR with sigaction\n");
-			return;
-		}
 
-		unsigned short int n = 0;
-		unsigned int blockcount = 0;
-		unsigned int blocknum;
-		while(1){
-			bzero(buffer, MAX_PACKET);
-			//wait for data packet
-			size = recvfrom(fd, buffer, MAX_PACKET, 0, NULL, NULL);
-
-			//Error if recvfrom failed
-			if (size <= 0){
-				perror("childFunction, Loop, recvfrom");
-				return;
+		if (opcode == 1){ // READ
+			// open file requested by client
+			unsigned int file_d = open(Filename, O_RDWR);
+			if (file_d == -1){	//ERROR
+				perror("childFuntion, Read, Open");
 			}
 
-			//bitmask to get opcode
-			opcode = ntohs((*(unsigned short int*)buffer));
-			if (opcode != 3){ //ERROR
-				perror("childFunction, Loop, != DATA");
-				continue;
-			}
+			printf("OPEN_SUCCESS\n");
 
-			//bitmask to get block number, resend ack if wrong block number
-			blocknum = ntohs((*(((unsigned short int*)buffer)+1)));
-			printf("Received block %u\n", blocknum);
-			if (blocknum != blockcount + 1){ //Wrong Order
-				printf("ENTER IF\n");
+
+			// send first data packet, wait 1 second to resend anything, 10 seconds to timeout
+			// error if packet from wrong tid, send error packet and ignore
+
+			// data packets of the form 2 byte opcode, 2 byte block number, n byte data
+			// ACk packets of the form 2 byte opcode, 2 byte block number
+			
+
+			// send data, set alarms, wait
+			// initialize readBytes to value for data to continue to be transferred
+			int readBytes = MAX_PACKET - 4;
+
+			// keeps track of current block number
+			unsigned int blockNumber = 1;
+			// opcode for data block
+			short dataCode = 3;
+
+			while(readBytes == MAX_PACKET - 4){
+				// casts buffer to short pointer to set first two bytes and second 2 bytes as opcode and blocknumber
+				// respectively, in network byte order
+				((short*)buffer)[0] = htons(dataCode);
+				((short*)buffer)[1] = htons(blockNumber);
+
+				// buffer to hold acknowledgement
+				char* response = calloc(MAX_PACKET, sizeof(char));
+
+
+
+				// read the next 512 bytes of the file into the buffer
+				readBytes = read(file_d, buffer + 4, MAX_PACKET - 4);
+
+				// counts number of times we resend messages
+				int n = 0;
+
 				while(1){
-					printf("NEW ITERATION\n");
-					((short*)ack)[0] = htons(4);
-					((short*)ack)[1] = htons(blockcount);
-					sendto(fd, ack, 4, 0, addr, sizeof(struct sockaddr_in));
+
+					printf("PRE-SEND\n");
+					// send current block of data
+					sendto(fd, buffer, readBytes + 4, 0, addr, cli_len);
+					printf("POST-SEND\n");
 
 					// resend after 1 second
 					alarm(1);
 
-					bzero(buffer, MAX_PACKET);
 					// wait for response, will be interrupted after 1 second
-					size = recvfrom(fd, buffer, MAX_PACKET, 0, NULL, NULL);
+					int bytes = recvfrom(fd, response, MAX_PACKET, 0, NULL, NULL);
 
 					alarm(0);
 					// if recvfrom was interrupted, or the message received had the wrong block number, resend
-					if( (size == -1 && errno == EINTR) || ntohs((*(unsigned short int*)buffer+1)) != blockcount+1){
+					if( (bytes == -1 && errno == EINTR) || ntohs((*(((unsigned short int*)response)+1))) != blockNumber){
 						// increment number of times we have sent message
 						n++;
+						printf("No response, resending block %d\n", blockNumber);
 						// timeout after 10 seconds
 						if(n == 10){
+							printf("Timeout occurred after 10 seconds\n");
 							// clean up resources and terminate
-							close(file_d);
-							return;
+							free(response);
+							response = NULL;
+							
+							// set fullBreak to 1 to break out of all loops but the outermost loop
+							fullBreak = 1;
+							break;
 						}
 						continue;
 					}
 					// if no interrupt, break and continue
 					break;
+
 				}
+
+				// if fullBreak nonzero, break to outermost loop (response was alread freed)
+				if(fullBreak != 0){
+					break;
+				}
+
+				// seen acknowledgement of data, move onto next block
+				blockNumber++;
+
+				free(response);
+				response = NULL;
+
+
+
 			}
 
-			//increment block counter, reset resend count
-			blockcount++;
-			n = 0;
+			// if fullBreak nonzero, in outermost loop, reset fullBreak to 0
+			if(fullBreak != 0){
+				fullBreak = 0;
+			}
 
-			//zero buffer, write data, send ACK
-			char data[MAX_PACKET];
-			bzero(data, MAX_PACKET);
-			memcpy(data, &buffer[4], MAX_PACKET-4);
-			data[MAX_PACKET] = '\0';
-			if (size != MAX_PACKET){ //END OF TRANSMISSION
+			// close file being read
+			close(file_d);
+
+			
+
+		} else if (opcode == 2) { //WRITE
+			//Open file to write
+			unsigned int file_d = open(Filename, O_CREAT | O_WRONLY | O_TRUNC, 0777);
+			if (file_d == -1){ //ERROR
+				perror("childFunction, Write, Open");
+			}
+			//Zero buffer and send an ACK back
+			bzero(buffer, MAX_PACKET);
+			char ack[4];
+			bzero(ack, 4);
+			((short*)ack)[0] = htons(4);
+			int size = sendto(fd, ack, 4, 0, addr, sizeof(struct sockaddr_in));
+			if (size <= 0){
+				perror("childFunction, Write, AckSend");
+				return;
+			}
+
+
+			unsigned short int n = 0;
+			unsigned int blockcount = 0;
+			unsigned int blocknum;
+			while(1){
+				bzero(buffer, MAX_PACKET);
+				//wait for data packet
+				size = recvfrom(fd, buffer, MAX_PACKET, 0, NULL, NULL);
+
+				//Error if recvfrom failed
+				if (size <= 0){
+					perror("childFunction, Loop, recvfrom");
+					continue;
+				}
+
+				//bitmask to get opcode
+				opcode = ntohs((*(unsigned short int*)buffer));
+				if (opcode != 3){ //ERROR
+					perror("childFunction, Loop, != DATA");
+					continue;
+				}
+
+				//bitmask to get block number, resend ack if wrong block number
+				blocknum = ntohs((*(((unsigned short int*)buffer)+1)));
+				printf("Received block %u\n", blocknum);
+				if (blocknum != blockcount + 1){ //Wrong Order
+					printf("ENTER IF\n");
+					while(1){
+						printf("NEW ITERATION\n");
+						((short*)ack)[0] = htons(4);
+						((short*)ack)[1] = htons(blockcount);
+						sendto(fd, ack, 4, 0, addr, sizeof(struct sockaddr_in));
+
+						// resend after 1 second
+						alarm(1);
+
+						bzero(buffer, MAX_PACKET);
+						// wait for response, will be interrupted after 1 second
+						size = recvfrom(fd, buffer, MAX_PACKET, 0, NULL, NULL);
+
+						alarm(0);
+						// if recvfrom was interrupted, or the message received had the wrong block number, resend
+						if( (size == -1 && errno == EINTR) || ntohs((*(unsigned short int*)buffer+1)) != blockcount+1){
+							// increment number of times we have sent message
+							n++;
+							// timeout after 10 seconds
+							if(n == 10){
+								// clean up resources and terminate
+								close(file_d);
+
+								// set fullBreak to 1 and break to outermost loop
+								fullBreak = 1;
+								break;
+							}
+							continue;
+						}
+						// if no interrupt, break and continue
+						break;
+					}
+					// if fullBreak nonzero, break to outermost loop
+					if(fullBreak != 0){
+						break;
+					}
+				}
+
+				//increment block counter, reset resend count
+				blockcount++;
+				n = 0;
+
+				//zero buffer, write data, send ACK
+				char data[MAX_PACKET];
+				bzero(data, MAX_PACKET);
+				memcpy(data, &buffer[4], MAX_PACKET-4);
+				data[MAX_PACKET] = '\0';
+				if (size != MAX_PACKET){ //END OF TRANSMISSION
+					write(file_d, data, size-4);
+					((short*)ack)[0] = htons(4);
+					((short*)ack)[1] = htons(blockcount);
+					sendto(fd, ack, 4, 0, addr, sizeof(struct sockaddr_in));
+					close(file_d);
+					// set fullBreak to 1 and break to outermost loop
+					fullBreak = 1;
+					break;
+				}	
 				write(file_d, data, size-4);
 				((short*)ack)[0] = htons(4);
 				((short*)ack)[1] = htons(blockcount);
 				sendto(fd, ack, 4, 0, addr, sizeof(struct sockaddr_in));
-				close(file_d);
-				return;
-			}	
-			write(file_d, data, size-4);
-			((short*)ack)[0] = htons(4);
-			((short*)ack)[1] = htons(blockcount);
-			sendto(fd, ack, 4, 0, addr, sizeof(struct sockaddr_in));
+			}
+
+			// in outermost loop, reset fullbreak
+			if(fullBreak != 0){
+				fullBreak = 0;
+				firstRun = 1;
+			}
+
 		}
 
+		firstRun = 1;
+
 	}
+	// finally return, no more requests
 	return;
 }
 
 
+void sig_interrupt(int signo){
+	// do the things
+
+	printf("Caught interrupt\n");
+
+	terminate();
+}
 
 int main(int argc, char* argv[]){
 
 	// struct to hold desired sigaction
 	struct sigaction sigintResponse;
 	// specify function to be called as handler
-	sigintResponse.sa_handler = &sig_int_handler;
+	sigintResponse.sa_handler = &sig_interrupt;
 	// initialize sa_mask to an empty set
 	sigemptyset(&(sigintResponse.sa_mask));
 	// no flags
@@ -315,18 +398,10 @@ int main(int argc, char* argv[]){
 		return EXIT_FAILURE;
 	}
 
-	// set response for alarm signal
-	sigintResponse.sa_handler = &resendDataAlarm;
-
-	rc = sigaction(SIGALRM, &sigintResponse, NULL);
-	if(rc < 0){
-		perror("ERROR with sigaction\n");
-		return EXIT_FAILURE;
-	}
 
 	// set the response to ingore signal, will be applied to children when created so they may finish
 	// normally when a signal interrupt is sent to the parent
-	sigintResponse.sa_handler = SIG_IGN;
+	sigintResponse.sa_handler = &sig_int_handler_child;
 
 	// check number of arguments
 	if(argc < 2){
@@ -379,18 +454,8 @@ int main(int argc, char* argv[]){
 
 		printf("PRE-READ\n");
 
-		// sets alarm for 2 seconds if interrupt has been given
-		if(term == 1){
-			alarm(2);
-		}
-
 		// wait until a request is received and store number of bytes read
 		int readBytes = recvfrom(fd, buf, MAX_PACKET, 0, (struct sockaddr*)client, (socklen_t*)&len);
-
-		// cancel alarm if it did not go off
-		if(term == 1){
-			alarm(0);
-		}
 
 		printf("READ\n");
 
@@ -401,8 +466,10 @@ int main(int argc, char* argv[]){
 			perror("recvfrom() failed\n");
 			printf("recvfrom() failed: errno %d\n", errno);
 			// clean up resources and try again
-			free(buf);
-			free(client);
+			if(buf != NULL)
+				free(buf);
+			if(client != NULL)
+				free(client);
 			close(fd);
 			continue;
 		}
@@ -416,16 +483,14 @@ int main(int argc, char* argv[]){
 		}
 		// child
 		else if(pid == 0){
-			// tells children to ignore signal interupt, signal interrupt will be
-			// meant for parent alone
+
+			// tells children what to do in reaction to signal interrupt:
+			// will set variable to allow child to exit on interrupt
 			int rc = sigaction(SIGINT, &sigintResponse, NULL);
 			if(rc < 0){
 				perror("ERROR with sigaction\n");
 				return EXIT_FAILURE;
 			}
-
-			// if term was 1, set to 0 in child so it does not try to clean up children
-			term = 0;
 
 			childFunction(fd, buf, (struct sockaddr*)client, len);
 
@@ -433,9 +498,11 @@ int main(int argc, char* argv[]){
 			close(fd);
 
 			// deallocate memory
-			free(buf);
+			if(buf != NULL)
+				free(buf);
 			buf = NULL;
-			free(client);
+			if(client != NULL)
+				free(client);
 			client = NULL;
 
 			return 0;
