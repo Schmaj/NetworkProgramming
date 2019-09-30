@@ -30,7 +30,7 @@ volatile int term = 0;
 int children = 0;
 
 
-// cleans up child resources
+// cleans up child resources and exits program, called by parent
 void terminate(){
 	printf("Exiting program\n");
 	int stat;
@@ -44,10 +44,10 @@ void terminate(){
 	exit(0);
 }
 
-// function to be called by parent on receipt of interrupt signal
-// sets term to 1, indicating that as long as there are no children that
-// need to spawn (handled by blocking on recvfrom waiting for an alarm),
-// process may collect children and terminate  
+// function to be called when interrupt signal is received by child,
+// indicating that child should allow itself to exit once current request is
+// dealt with
+// child will not continue to loop waiting for new requests when term is set to 1
 void sig_int_handler_child(int signo){
 	printf("Kill signal received\n");
 	term = 1;
@@ -59,6 +59,25 @@ void resendDataAlarm(int signo){
 	return;
 }
 
+// function for most functionality of the program
+// takes in information of where messages should be sent
+// parses for opcode and handles RRQ and WRQ separately
+// opens file to read or write to, and sends messages in order to accomplish that
+//
+// RRQ opens a local file from which to read and sends the 512 byte chunk of data to
+// the desired address every second until the next ack message is received
+//
+// WRQ opens a local file to write to, and receives 512 byte chunks of data that are then
+// written to this file
+// after each data block is received, an ack is sent
+//
+// for either functionality, any messages that do not match what was expected
+// (i.e. wrong opcode or wrong blocknumber) are ignored, as they may be due to 
+// latency issues
+//
+// this function, after successfully completing its request, loops waiting for another
+// request until a signal interrupt is received, then returns for the last dynamically allocated
+// memory to be freed, and the process to exit gracefully
 void childFunction(unsigned int fd, char* buffer, struct sockaddr* addr, socklen_t cli_len){
 
 	struct sigaction response;
@@ -149,6 +168,24 @@ void childFunction(unsigned int fd, char* buffer, struct sockaddr* addr, socklen
 			unsigned int file_d = open(Filename, O_RDWR);
 			if (file_d == -1){	//ERROR
 				perror("childFuntion, Read, Open");
+
+				// send error packet
+				// error code 1 is file not found
+				char err[19];
+				bzero(err, 19);
+				// 5 is error code
+				((short*)err)[0] = htons(5);
+				// 1 is code for file not found
+				((short*)err)[1] = htons(1);
+
+				// copy message into err
+				memcpy(&err[4], "File not Found\0", 15);
+
+				int size = sendto(fd, err, 19, 0, addr, sizeof(struct sockaddr_in));
+
+				// go back to main loop
+				firstRun = 1;
+				continue;
 			}
 
 			printf("OPEN_SUCCESS\n");
@@ -254,6 +291,9 @@ void childFunction(unsigned int fd, char* buffer, struct sockaddr* addr, socklen
 			unsigned int file_d = open(Filename, O_CREAT | O_WRONLY | O_TRUNC, 0777);
 			if (file_d == -1){ //ERROR
 				perror("childFunction, Write, Open");
+				// reset to main loop
+				firstRun = 1;
+				continue;
 			}
 			//Zero buffer and send an ACK back
 			bzero(buffer, MAX_PACKET);
@@ -371,15 +411,19 @@ void childFunction(unsigned int fd, char* buffer, struct sockaddr* addr, socklen
 	return;
 }
 
-
+// parent process will terminate and wait for all children upon receiving
+// a signal interrupt
 void sig_interrupt(int signo){
-	// do the things
 
 	printf("Caught interrupt\n");
 
 	terminate();
 }
 
+// main function, sets various signal behaviors and creates sockets
+// UDP sockets are created on ports starting from portMin, and incrementing
+// every time a request is received on the latest port, forking, and allowing
+// a child process to handle that request
 int main(int argc, char* argv[]){
 
 	// struct to hold desired sigaction
