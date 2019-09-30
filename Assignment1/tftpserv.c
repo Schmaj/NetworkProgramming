@@ -18,6 +18,17 @@
 #include <errno.h>
 
 #define MAX_PACKET 516
+#define QUEUE_SIZE 5
+
+// struct to hold a received request (RRQ or WRQ) and the address of the client
+// that sent it, to be executed at next opportunity
+struct queuedAction {
+	// buffer to hold data received from message
+	char* buffer;
+	// address of client
+	struct sockaddr_in addr;
+};
+
 
 // flag to show whether SIGINT has been received and process
 // should terminate
@@ -95,6 +106,11 @@ void childFunction(unsigned int fd, char* buffer, struct sockaddr* addr, socklen
 		return;
 	}
 
+	// a queue with space for 5 requests
+	struct queuedAction* queue[QUEUE_SIZE];
+	// zero out memory of queue
+	bzero(queue, QUEUE_SIZE * sizeof(struct queuedAction*));
+
 	// variable to represent that the connection timed out, or process would which to return for other
 	// reason.  However, the process must continue to loop waiting for new connections, so when this variable is
 	// nonzero, the process will break to its outermost loop
@@ -112,42 +128,70 @@ void childFunction(unsigned int fd, char* buffer, struct sockaddr* addr, socklen
 		// subsequent iterations through loop
 		if(firstRun != 0){
 
+			// variable is 0 if nothing in queue, else 1
+			int queueFilled = 0;
 
-			// loop in case of error
-			while(1){
-				// zero out buffer and client address
-				bzero(buffer, MAX_PACKET);
-				bzero(addr, cli_len);
+			// if something is in the queue, handle that request instead of receiving a message
+			for(int n = 0; n < QUEUE_SIZE; n++){
+				// if there is something in the queue
+				if(queue[n] != NULL){
+					// zero out memory
+					bzero(buffer, MAX_PACKET);
+					bzero(addr, cli_len);
 
-				cli_len = sizeof(struct sockaddr_in);
+					// copy current state from queue into local variables
+					memcpy(buffer, queue[n]->buffer, MAX_PACKET);
+					memcpy(addr, &queue[n]->addr, cli_len);
+					free(queue[n]->buffer);
+					free(queue[n]);
+					queue[n] = NULL;
 
-				// set 1 second alarm in case of weird race conditions with term signal, don't
-				// block forever on read
-				alarm(1);
+					queueFilled = 1;
 
-				// stores number of bytes read
-				int br = recvfrom(fd, buffer, MAX_PACKET, 0, addr, &cli_len);
+					break;
+				}
+			}
 
-				// cancel alarm if it did not go off
-				alarm(0);
+			// receive message if nothing was in queue
+			if(queueFilled == 0){
 
-				// error
-				if(br == -1){
-					//printf("recvfrom() failed child, errno %d\n", errno);
+				// loop in case of error
+				while(1){
+					// zero out buffer and client address
+					bzero(buffer, MAX_PACKET);
+					bzero(addr, cli_len);
 
-					// if error was interrupt, term may be set and should be checked to not
-					// block indefinitely
-					if(term == 1){
-						return;
+					cli_len = sizeof(struct sockaddr_in);
+
+					// set 1 second alarm in case of weird race conditions with term signal, don't
+					// block forever on read
+					alarm(1);
+
+					// stores number of bytes read
+					int br = recvfrom(fd, buffer, MAX_PACKET, 0, addr, &cli_len);
+
+					// cancel alarm if it did not go off
+					alarm(0);
+
+					// error
+					if(br == -1){
+						//printf("recvfrom() failed child, errno %d\n", errno);
+
+						// if error was interrupt, term may be set and should be checked to not
+						// block indefinitely
+						if(term == 1){
+							return;
+						}
+
+						// try to read bytes again
+						continue;
+
 					}
 
-					// try to read bytes again
-					continue;
+					// if bytes correctly received, break out of loop and handle request
+					break;
 
 				}
-
-				// if bytes correctly received, break out of loop and handle request
-				break;
 
 			}
 
@@ -213,6 +257,7 @@ void childFunction(unsigned int fd, char* buffer, struct sockaddr* addr, socklen
 				((short*)buffer)[0] = htons(dataCode);
 				((short*)buffer)[1] = htons(blockNumber);
 
+
 				// buffer to hold acknowledgement
 				char* response = calloc(MAX_PACKET, sizeof(char));
 
@@ -226,6 +271,10 @@ void childFunction(unsigned int fd, char* buffer, struct sockaddr* addr, socklen
 
 				while(1){
 
+					// initialize sockaddrs to be filled by recv
+					struct sockaddr_in cli;
+					unsigned int cli_l = sizeof(struct sockaddr_in);
+
 					printf("PRE-SEND\n");
 					// send current block of data
 					sendto(fd, buffer, readBytes + 4, 0, addr, cli_len);
@@ -235,11 +284,45 @@ void childFunction(unsigned int fd, char* buffer, struct sockaddr* addr, socklen
 					alarm(1);
 
 					// wait for response, will be interrupted after 1 second
-					int bytes = recvfrom(fd, response, MAX_PACKET, 0, NULL, NULL);
+					int bytes = recvfrom(fd, response, MAX_PACKET, 0, (struct sockaddr*)&cli, &cli_l);
 
 					alarm(0);
 					// if recvfrom was interrupted, or the message received had the wrong block number, resend
 					if( (bytes == -1 && errno == EINTR) || ntohs((*(((unsigned short int*)response)+1))) != blockNumber){
+
+						// if a message was received, and message was a WRQ or RRQ, add to the queue
+						if(bytes != -1 && (ntohs((*(((unsigned short int*)response)))) == 0 || ntohs((*(((unsigned short int*)response)+1))) == 1)){
+							// next available index in queue
+							int availIndex = -1;
+							// set to 0 if request is not in queue, 1 if already in queue
+							int found = 0;
+							// iterate over queue
+							for(int n = 0; n < QUEUE_SIZE; n++){
+								// skip null entries
+								if(queue[n] == NULL){
+									// if earliest null, set availIndex to this index
+									if(availIndex == -1)
+										n = availIndex;
+									continue;
+								}
+								// if the received message matches something in the queue, set found and break
+								if(memcmp(queue[n]->buffer, response, MAX_PACKET) == 0){
+									found = 1;
+									break;
+								}
+							}
+							// if not in queue, add to queue at earliest index
+							if(found == 0){
+								// allocate memory and initialize values of this 
+								queue[availIndex] = calloc(1, sizeof(struct queuedAction));
+								queue[availIndex]->addr = cli;
+
+								queue[availIndex]->buffer = calloc(MAX_PACKET, sizeof(char));
+								memcpy(queue[availIndex]->buffer, response, MAX_PACKET);
+							}
+
+						}
+
 						// increment number of times we have sent message
 						n++;
 						printf("No response, resending block %d\n", blockNumber);
@@ -334,6 +417,11 @@ void childFunction(unsigned int fd, char* buffer, struct sockaddr* addr, socklen
 				if (blocknum != blockcount + 1){ //Wrong Order
 					printf("ENTER IF\n");
 					while(1){
+
+						// initialize sockaddrs to be filled by recv
+						struct sockaddr_in cli;
+						unsigned int cli_l = sizeof(struct sockaddr_in);
+
 						printf("NEW ITERATION\n");
 						((short*)ack)[0] = htons(4);
 						((short*)ack)[1] = htons(blockcount);
@@ -344,11 +432,44 @@ void childFunction(unsigned int fd, char* buffer, struct sockaddr* addr, socklen
 
 						bzero(buffer, MAX_PACKET);
 						// wait for response, will be interrupted after 1 second
-						size = recvfrom(fd, buffer, MAX_PACKET, 0, NULL, NULL);
+						size = recvfrom(fd, buffer, MAX_PACKET, 0, (struct sockaddr*)&cli, &cli_l);
 
 						alarm(0);
 						// if recvfrom was interrupted, or the message received had the wrong block number, resend
 						if( (size == -1 && errno == EINTR) || ntohs((*(unsigned short int*)buffer+1)) != blockcount+1){
+							// if a message was received, and message was a WRQ or RRQ, add to the queue
+							if(size != -1 && (ntohs((*(((unsigned short int*)buffer)))) == 0 || ntohs((*(((unsigned short int*)buffer)+1))) == 1)){
+								// next available index in queue
+								int availIndex = -1;
+								// set to 0 if request is not in queue, 1 if already in queue
+								int found = 0;
+								// iterate over queue
+								for(int n = 0; n < QUEUE_SIZE; n++){
+									// skip null entries
+									if(queue[n] == NULL){
+										// if earliest null, set availIndex to this index
+										if(availIndex == -1)
+											n = availIndex;
+										continue;
+									}
+									// if the received message matches something in the queue, set found and break
+									if(memcmp(queue[n]->buffer, buffer, MAX_PACKET) == 0){
+										found = 1;
+										break;
+									}
+								}
+								// if not in queue, add to queue at earliest index
+								if(found == 0){
+									// allocate memory and initialize values of this 
+									queue[availIndex] = calloc(1, sizeof(struct queuedAction));
+									queue[availIndex]->addr = cli;
+
+									queue[availIndex]->buffer = calloc(MAX_PACKET, sizeof(char));
+									memcpy(queue[availIndex]->buffer, buffer, MAX_PACKET);
+								}
+
+							}
+
 							// increment number of times we have sent message
 							n++;
 							// timeout after 10 seconds
