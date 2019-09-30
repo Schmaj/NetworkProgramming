@@ -10,3 +10,6 @@ Issues: Miscommunication and misunderstanding of the specifications lead to most
 	We were under the impression that once a transfer was complete, the server disconnected from the client and would not listen for more operations. Therefore, we failed many tests in the beginning.
 	Submitty also caused problems in the debugging stage, due to it crashing or otherwise being unable to autograde our submissions. 
 
+Approximate Total Man Hours: 28 Hrs.
+
+Breakdown: 60% Conley, Andrew; 40% Schmalz, Jonathon
