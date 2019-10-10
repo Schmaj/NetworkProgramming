@@ -14,20 +14,46 @@
 
 struct addStruct
 {
-	int x;
-	int y;
+	unsigned int x;
+	unsigned int y;
 };
 
 void * add(void * arg){
 	struct addStruct nums = *(struct addStruct *)arg;
-	return (void*)(nums.x + nums.y); 
+	printf("Thread %ld running add() with [%d + %d]\n", num.x, numx.y);
+	unsigned int answer = nums.x + nums.y;
+	free(arg);
+	return (void*)answer; 
 }
 
 int main(int argc, char ** argv){
 	pthread_t children[NUM_CHILD * (NUM_CHILD - 1)];
-	for (unsigned long i = 0; i < NUM_CHILD; ++i){
-		for (unsigned long j = 0; j < NUM_CHILD; ++j){
-			printf("Main starting thread add() for [%ld + %ld]\n", i + 1, j + 1);
+
+	for (unsigned int i = 0; i < NUM_CHILD; ++i){
+		for (unsigned int j = 0; j < NUM_CHILD; ++j){
+
+			printf("Main starting thread add() for [%d + %d]\n", i + 1, j + 1);
+			struct addStruct * arg = calloc(1, sizeof(struct addStruct));
+			arg->x = i + 1;
+			arg->y = j + 1;
+			int val = pthread_create(&tid, NULL, add, (void *)arg);
+
+			if (val < 0){
+				return -1;
+			} else {
+				children[(i*5) + j] = tid;
+			}
 		}
 	}
+
+	unsigned int x, y;
+	for (unsigned int i = 0; i < NUM_CHILD * (NUM_CHILD - 1); ++i){
+		unsigned int *retval;
+		pthread_join(children[i], (void **)&retval);
+		x = ;
+		y = ;
+		printf("In main, collecting thread %ld computed [%d + %d] = %d\n", children[i], x, y, 
+			(unsigned int)ret_val);
+	}
+	return 0;
 }
