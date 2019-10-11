@@ -29,7 +29,7 @@ void * add(void * arg){
 int main(int argc, char ** argv){
 	pthread_t children[NUM_CHILD * (NUM_CHILD - 1)];
 
-	for (unsigned int i = 0; i < NUM_CHILD; ++i){
+	for (unsigned int i = 0; i < NUM_CHILD-1; ++i){
 		for (unsigned int j = 0; j < NUM_CHILD; ++j){
 			pthread_t tid;
 			printf("Main starting thread add() for [%d + %d]\n", i + 1, j + 1);
@@ -41,7 +41,7 @@ int main(int argc, char ** argv){
 			if (val < 0){
 				return -1;
 			} else {
-				children[(i*5) + j] = tid;
+				children[(i*NUM_CHILD) + j] = tid;
 			}
 		}
 	}
@@ -51,8 +51,8 @@ int main(int argc, char ** argv){
 		unsigned int *retval;
 		pthread_join(children[i], (void **)&retval);
 		x = i/NUM_CHILD;
-		y = i/NUM_CHILD;
-		printf("In main, collecting thread %ld computed [%d + %d] = %d\n", children[i], x, y, 
+		y = i%NUM_CHILD;
+		printf("In main, collecting thread %ld computed [%d + %d] = %d\n", children[i], x+1, y+1, 
 			(unsigned int)retval);
 	}
 	return 0;
