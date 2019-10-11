@@ -50,8 +50,8 @@ int main(int argc, char ** argv){
 	for (unsigned int i = 0; i < NUM_CHILD * (NUM_CHILD - 1); ++i){
 		unsigned int *retval;
 		pthread_join(children[i], (void **)&retval);
-		x = ;
-		y = ;
+		x = i/NUM_CHILD;
+		y = i/NUM_CHILD;
 		printf("In main, collecting thread %ld computed [%d + %d] = %d\n", children[i], x, y, 
 			(unsigned int)ret_val);
 	}
