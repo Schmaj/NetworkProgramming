@@ -20,7 +20,7 @@ struct addStruct
 
 void * add(void * arg){
 	struct addStruct nums = *(struct addStruct *)arg;
-	printf("Thread %ld running add() with [%d + %d]\n", num.x, numx.y);
+	printf("Thread %ld running add() with [%d + %d]\n", pthread_self(), nums.x, nums.y);
 	unsigned int answer = nums.x + nums.y;
 	free(arg);
 	return (void*)answer; 
@@ -31,7 +31,7 @@ int main(int argc, char ** argv){
 
 	for (unsigned int i = 0; i < NUM_CHILD; ++i){
 		for (unsigned int j = 0; j < NUM_CHILD; ++j){
-
+			pthread_t tid;
 			printf("Main starting thread add() for [%d + %d]\n", i + 1, j + 1);
 			struct addStruct * arg = calloc(1, sizeof(struct addStruct));
 			arg->x = i + 1;
@@ -53,7 +53,7 @@ int main(int argc, char ** argv){
 		x = i/NUM_CHILD;
 		y = i/NUM_CHILD;
 		printf("In main, collecting thread %ld computed [%d + %d] = %d\n", children[i], x, y, 
-			(unsigned int)ret_val);
+			(unsigned int)retval);
 	}
 	return 0;
 }
