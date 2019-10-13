@@ -10,7 +10,7 @@
 
 #include <unistd.h>
 #include <sys/wait.h>
-#include <poll.h>
+#include <sys/select.h>
 
 #include <signal.h>
 #include <fcntl.h>
@@ -20,6 +20,15 @@
 
 // number of clients allowed
 #define BACKLOG 5
+#define NO_CLIENT -1
+#define TIMEOUT 15
+
+
+// takes in file descriptor of communicating socket, a pointer to the list of clients
+// and the index of this client in that list
+void respond(int fd, int* clientList, int index){
+	return;
+}
 
 int main(int argc, char* argv[]){
 
@@ -60,7 +69,7 @@ int main(int argc, char* argv[]){
 	server.sin_family = AF_INET;
 	// allow any ip address
 	server.sin_addr.s_addr = htonl(INADDR_ANY);
-	// initialize to min port in port range
+	// initialize to given port
 	server.sin_port = htons(port);
 
 	// size of struct for bind()
@@ -78,11 +87,92 @@ int main(int argc, char* argv[]){
 		return EXIT_FAILURE;
 	}
 
-	while(1){
-
+	// create an array to hold file descriptor for each connected client
+	int clients[BACKLOG];
+	// initialize each file descriptor to -1, the chosen value to represent no client
+	for(int n = 0; n < BACKLOG; n++){
+		clients[n] = NO_CLIENT;
 	}
 
+	while(1){
+		// structure to hold a set of file descriptors to watch
+		fd_set rfds;
 
+		// set rfds to include no file descriptors
+		FD_ZERO(&rfds);
+
+		// count number of clients currently connected
+		int activeClients = 0;
+
+		for(int n = 0; n < BACKLOG; n++){
+			// add all existing clients to the fd_set
+			if(clients[n] != NO_CLIENT){
+				FD_SET(clients[n], &rfds);
+				activeClients++;
+			}
+		}
+
+		// add listening socket to fd_set
+		FD_SET(listenFd, &rfds);
+
+		// structure to specify TIMEOUT second timeout on select() call
+		struct timeval timeout;
+
+		timeout.tv_sec = TIMEOUT;
+		timeout.tv_usec = 0;
+
+		// wait for activity on listening socket, or any active client
+		int retval = select(activeClients + 1, &rfds, NULL, NULL, &timeout);
+
+		if(retval == 0){
+			printf("No Activity\n");
+			return 0;
+		}
+		else if(retval == -1){
+			perror("ERROR Select() failed\n");
+			return EXIT_FAILURE;
+		}
+
+		// check active clients for activity
+		for(int n = 0; n < BACKLOG; n++){
+			// if active client and there is activity
+			if(clients[n] != NO_CLIENT && FD_ISSET(clients[n], &rfds)){
+				respond(clients[n], clients, n);
+			}
+		}
+
+
+		// if listening socket has activity accept connection
+		if(FD_ISSET(listenFd, &rfds)){
+			// stores index of first unused client slot
+			int firstOpen = -1;
+
+			// check that a connection is available
+			for(int n = 0; n < BACKLOG; n++){
+				if(clients[n] != NO_CLIENT){
+					firstOpen = n;
+					break;
+				}
+			}
+
+			// if the maximum number of clients are currently connected, ignore this connection until
+			// a client disconnects
+			if(firstOpen == -1){
+				printf("Exceeded max number of clients, ignoring connection\n");
+				continue;
+			}
+			
+			// add file descriptor to new client to the list of clients
+			clients[firstOpen] = accept(listenFd, NULL, NULL);
+
+			if(clients[firstOpen] < 0){
+				perror("accept() failed\n");
+				return EXIT_FAILURE;
+			}
+
+
+		}
+	}
 
 
 }
