@@ -8,6 +8,19 @@
 		as he used them, the string sent to everyone maintains the 
 		case used by bob
 
+
+Single threaded, single process application:
+	we listen for current connections before new ones, and current connections
+	are dealt with in a specific order
+		what should that order be?
+		what if someone disconnects and someone else connects between two select calls?
+			order client vs accept affects number of players sent
+
+		order clients are dealt with affects order of broadcasts sent and received
+
+Tell user how many players upon successful username
+	Same message or second message?
+
 */
 
 
@@ -35,7 +48,17 @@
 #define BACKLOG 5
 #define NO_CLIENT -1
 #define TIMEOUT 15
+#define WELCOME_MESSAGE "Welcome to Guess the Word, please enter your username\n"
+// length of largest allowed username
+#define MAX_NAME 30
 
+// structure to hold client information
+struct client{
+	// file descriptor referring to socket communicating with client
+	int fd;
+	// username chosen by client
+	char* username;
+};
 
 // sends message to all clients
 void broadcast(){
@@ -44,7 +67,7 @@ void broadcast(){
 
 // takes in file descriptor of communicating socket, a pointer to the list of clients
 // and the index of this client in that list
-void respond(int fd, int* clientList, int index){
+void respond(struct client fd, struct client* clientList, int index){
 	broadcast();
 	return;
 }
@@ -128,6 +151,77 @@ void testQueueSort(){
 
 */
 
+// communicates with client to resolve username, then adds client to clients array
+void addClient(int newFd, struct client* clients, int firstOpen, int numClients, int numLetters){
+
+	// send welcome message to client
+	write(newFd, WELCOME_MESSAGE, strlen(WELCOME_MESSAGE));
+
+	// create buffer to hold username
+	char* buf = calloc(MAX_NAME + 1, sizeof(char));
+
+	// loop if invalid usernames are given
+	while(1){
+
+		// flag for invalid name, 0 means name ok, 1 means name bad
+		int invalidName = 0;
+
+		// zero out buffer
+		memset(buf, 0, MAX_NAME + 1);
+
+		// read in user response
+		int bytesRead = read(newFd, buf, MAX_NAME);
+
+		// check if username is taken
+		for(int n = 0; n < BACKLOG; n++){
+			// if client has a username and it is the same as the current response
+			if(clients[n].username && strcmp(clients[n].username, buf) == 0){
+				// send invalid username response
+				char* inval = calloc(strlen("Username  is already taken, please enter a different username\n") + MAX_NAME, sizeof(char));
+				sprintf(inval, "Username %s is already taken, please enter a different username\n", buf);
+				write(newFd, inval, strlen(inval));
+				// free allocated memory and wait for next response
+				free(inval);
+				invalidName = 1;
+				break;
+
+			}
+		}
+
+		// if another name is required
+		if(invalidName == 1){
+			continue;
+		}
+		// name is correct
+		else{
+
+			// send confirm username is correct and send message with number of players and size of word
+
+			// strlen argument is the longer of the two messages that will be stored in this buffer
+			char* invite = calloc(strlen("There are  player(s) playing. The secret word is  letters.\n") + MAX_NAME, sizeof(char));
+			sprintf(invite, "Let's start playing, %s\n", buf);
+			write(newFd, invite, strlen(invite));
+
+			sprintf(invite, "There are %d player(s) playing. The secret word is %d letters.\n", numClients, numLetters);
+			write(newFd, invite, strlen(invite));
+
+
+			// free allocated memory and break out of loop since username has been resolved
+			free(invite);
+			invite = NULL;
+			break;
+		}
+
+	
+	}
+
+	// set file descriptor and username
+	clients[firstOpen].fd = newFd;
+	clients[firstOpen].username = buf;
+
+}
+
+
 int main(int argc, char* argv[]){
 
 	// check for correct number of arguments
@@ -154,6 +248,9 @@ int main(int argc, char* argv[]){
 	int num = buildDictionary(dictFile, dictionary, maxWordLen);
 
 	free(dictFile);
+
+	// TODO: select word
+	int wordSize = strlen(dictionary[0]);
 
 	#ifdef DEBUG_MODE
 		printf("Dict is:\n");
@@ -201,11 +298,12 @@ int main(int argc, char* argv[]){
 		return EXIT_FAILURE;
 	}
 
-	// create an array to hold file descriptor for each connected client
-	int clients[BACKLOG];
+	// create an array to hold each connected client
+	struct client clients[BACKLOG];
 	// initialize each file descriptor to -1, the chosen value to represent no client
 	for(int n = 0; n < BACKLOG; n++){
-		clients[n] = NO_CLIENT;
+		clients[n].fd = NO_CLIENT;
+		clients[n].username = NULL;
 	}
 
 	while(1){
@@ -220,8 +318,8 @@ int main(int argc, char* argv[]){
 
 		for(int n = 0; n < BACKLOG; n++){
 			// add all existing clients to the fd_set
-			if(clients[n] != NO_CLIENT){
-				FD_SET(clients[n], &rfds);
+			if(clients[n].fd != NO_CLIENT){
+				FD_SET(clients[n].fd, &rfds);
 				activeClients++;
 			}
 		}
@@ -250,7 +348,7 @@ int main(int argc, char* argv[]){
 		// check active clients for activity
 		for(int n = 0; n < BACKLOG; n++){
 			// if active client and there is activity
-			if(clients[n] != NO_CLIENT && FD_ISSET(clients[n], &rfds)){
+			if(clients[n].fd != NO_CLIENT && FD_ISSET(clients[n].fd, &rfds)){
 				respond(clients[n], clients, n);
 			}
 		}
@@ -263,7 +361,7 @@ int main(int argc, char* argv[]){
 
 			// check that a connection is available
 			for(int n = 0; n < BACKLOG; n++){
-				if(clients[n] != NO_CLIENT){
+				if(clients[n].fd != NO_CLIENT){
 					firstOpen = n;
 					break;
 				}
@@ -275,15 +373,17 @@ int main(int argc, char* argv[]){
 				printf("Exceeded max number of clients, ignoring connection\n");
 				continue;
 			}
-			
-			// add file descriptor to new client to the list of clients
-			clients[firstOpen] = accept(listenFd, NULL, NULL);
+	
+			// accept connection and store file descriptor to communicating socket		
+			int newFd = accept(listenFd, NULL, NULL);
 
-			if(clients[firstOpen] < 0){
+			if(newFd < 0){
 				perror("accept() failed\n");
 				return EXIT_FAILURE;
 			}
 
+			// resolve username and add file descriptor of new client to the list of clients
+			addClient(newFd, clients, firstOpen, activeClients, wordSize);
 
 		}
 	}
