@@ -68,11 +68,12 @@ void broadcast(){
 // takes in file descriptor of communicating socket, a pointer to the list of clients
 // and the index of this client in that list
 void respond(struct client fd, struct client* clientList, int index){
+
 	broadcast();
 	return;
 }
 
-// taken from qsort manpage example
+// taken from qsort manpage example, used for sorting dictionary array
 static int
        cmpstringp(const void *p1, const void *p2)
        {
@@ -146,6 +147,10 @@ void testQueueSort(){
 	printf("post-sort list:\n%s\n%s\n%s\n", list[0], list[1], list[2]);
 
 	// prints abc then def then ghi
+
+
+
+	// above example is wrong but happened to work, can't use strcmp directly, need cmpstringp defined further above
 
 }
 
