@@ -1,0 +1,9 @@
+cat
+dog
+zebra
+goat
+hippopotamus
+ocelot
+german shepherd
+skunk
+kangaroo

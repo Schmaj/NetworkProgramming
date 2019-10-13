@@ -1,3 +1,16 @@
+/* game not case sensitive:
+		is dictionary case sensitive? with regards to sorting, do 
+		we need to lowercase before sorting?
+
+		are usernames case sensitive?
+
+		bob's broadcasted guess uses lower or upper case letters
+		as he used them, the string sent to everyone maintains the 
+		case used by bob
+
+*/
+
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -24,18 +37,103 @@
 #define TIMEOUT 15
 
 
+// sends message to all clients
+void broadcast(){
+	return;
+}
+
 // takes in file descriptor of communicating socket, a pointer to the list of clients
 // and the index of this client in that list
 void respond(int fd, int* clientList, int index){
+	broadcast();
 	return;
 }
+
+// taken from qsort manpage example
+static int
+       cmpstringp(const void *p1, const void *p2)
+       {
+           /* The actual arguments to this function are "pointers to
+              pointers to char", but strcmp(3) arguments are "pointers
+              to char", hence the following cast plus dereference */
+
+           return strcmp(* (char * const *) p1, * (char * const *) p2);
+       }
+
+
+int buildDictionary(char* filename, char** dictionary, int wordSize){
+
+	// open dictionary file
+	FILE* dictFile = fopen(filename, "r");
+
+	// index in dictionary
+	int n = 0;
+
+	// loop until end of file (break statement)
+	while(1){
+		// allocate memory to store next word
+		char* word = calloc(wordSize + 1, sizeof(char));
+		// read next line into buffer word
+		char* ptr = fgets(word, wordSize + 1, dictFile);
+
+		// if ptr is null, end of file or error, either case break
+		if(ptr == NULL){
+			// nothing meaningful was stored in final buffer, free memory and NULL pointer
+			free(word);
+			word = NULL;
+
+			break;
+		}
+
+		// remove trailing newline
+		word[strlen(word) - 1] = '\0';
+
+		dictionary[n] = word;
+		n++;
+	}
+
+	// close dictionary file
+	fclose(dictFile);
+
+	// sort the strings in dictionary in alphabetical order
+	qsort(dictionary, n, sizeof(char*), cmpstringp);
+
+	return n;
+
+}
+
+/*
+void testQueueSort(){
+	char** list = calloc(3, sizeof(char*));
+	char* a = "abc";
+	char* b = "def";
+	char* c = "ghi";
+
+	list[0] = c;
+	list[1] = a;
+	list[2] = b;
+
+	printf("pre-sort list:\n%s\n%s\n%s\n", list[0], list[1], list[2]);
+
+	// prints ghi then abc then def
+
+	// pointer to first element, number of elements, comparison function (cast to correct pointer type)
+	qsort(list, 3, sizeof(char*), (int (*)(const void*,const void*))strcmp);
+
+	printf("post-sort list:\n%s\n%s\n%s\n", list[0], list[1], list[2]);
+
+	// prints abc then def then ghi
+
+}
+
+*/
 
 int main(int argc, char* argv[]){
 
 	// check for correct number of arguments
 	if(argc < 4){
 		printf("Insufficient arguments\n");
-		printf("Usage: ./word_guess.out [seed] [port] [dictionary_file] [longest_word_length]");
+		printf("Usage: %s [seed] [port] [dictionary_file] [longest_word_length]\n", argv[0]);
 		return 0;
 	}
 
@@ -50,6 +148,22 @@ int main(int argc, char* argv[]){
 	strcpy(dictFile, argv[3]);
 	// length of longest word in dictionary
 	int maxWordLen = atoi(argv[4]);
+
+	char** dictionary = calloc(64, sizeof(char*));
+
+	int num = buildDictionary(dictFile, dictionary, maxWordLen);
+
+	free(dictFile);
+
+	#ifdef DEBUG_MODE
+		printf("Dict is:\n");
+		for(int n = 0; n < num; n++){
+			printf("\t%s\n", dictionary[n]);
+			free(dictionary[n]);
+			dictionary[n] = NULL;
+		}
+		return 0;
+	#endif
 
 	// file descriptor listening for new connections
 	int listenFd = socket(PF_INET, SOCK_STREAM, 0);
