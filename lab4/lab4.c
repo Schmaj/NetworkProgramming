@@ -10,7 +10,7 @@
 #include <fcntl.h>
 #include <pthread.h>
 
-#define NUM_CHILD 5
+#define NUM_CHILD 6
 
 struct addStruct
 {
