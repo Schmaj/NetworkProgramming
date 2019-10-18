@@ -73,6 +73,10 @@ void broadcast(struct client* clientList, char * message){
 	return;
 }
 
+int compareWord(int * lettersCorrect, int * placesCorrect, char * guess, char * secretWord){
+	return 0;
+}
+
 // takes in file descriptor of communicating socket, a pointer to the list of clients
 // and the index of this client in that list
 int respond(struct client client, struct client* clientList, 
@@ -103,11 +107,20 @@ int respond(struct client client, struct client* clientList,
 
 		return 0;
 
-	} else if (messageLength != strlen(secretWord) + 1){ //WRONG LENGTH
+	} else if (messageLength != strlen(secretWord)+1
+			|| (messageLength == max_word_length+1 && message[messageLength-1] != '\n')) { //WRONG LENGTH
 		memset(message, 0, max_word_length+1);
 		sprintf(message, "Invalid guess length. The secret word is %ld letter(s)", strlen(secretWord));
 		write(client.fd, message, strlen(message));
 		return -1;
+	}
+
+	message[messageLength-1] = '\0';
+
+	int lettersCorrect, placesCorrect;
+	int compareResult = compareWord(&lettersCorrect, &placesCorrect, message, secretWord);
+	if (compareResult == -1){
+		perror("Respond, compareResult");
 	}
 
 	broadcast(clientList, message);
