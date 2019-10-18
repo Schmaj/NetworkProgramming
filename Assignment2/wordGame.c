@@ -64,7 +64,13 @@ struct client{
 
 // compares strings s1 and s2 of length len when all characters are set to lowercase
 // returns 0 if words match, 1 if they do not
-int caselessCmp(char* s1, char* s2, int len){
+int caselessCmp(char* s1, char* s2){
+
+	int len = strlen(s1);
+	// if strings are different lengths, return 1 (different)
+	if(strlen(s2) != len){
+		return 1;
+	} 
 
 	for(int n = 0; n < len; n++){
 		// if letters do not match
@@ -228,7 +234,7 @@ void addClient(int newFd, struct client* clients, int firstOpen, int numClients,
 		// check if username is taken
 		for(int n = 0; n < BACKLOG; n++){
 			// if client has a username and it is the same as the current response
-			if(clients[n].username && strcmp(clients[n].username, buf) == 0){
+			if(clients[n].username && caselessCmp(clients[n].username, buf) == 0){
 				// send invalid username response
 				char* inval = calloc(strlen("Username  is already taken, please enter a different username\n") + MAX_NAME, sizeof(char));
 				sprintf(inval, "Username %s is already taken, please enter a different username\n", buf);
