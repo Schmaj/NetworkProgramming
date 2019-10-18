@@ -82,8 +82,9 @@ int respond(struct client client, struct client* clientList,
 	int messageLength = read(client.fd, message, max_word_length+1);
 	if (messageLength < 0){//ERROR
 		perror("respond, messageLength");
-	} else if (messageLength != strlen(secretWord) + 1 
-			|| (messageLength == max_word_length+1 && message[messageLength-1] != '\n')) { //WRONG LENGTH
+
+	} else if (messageLength != strlen(secretWord)+1 
+			|| (messageLength == strlen(secretWord)+1 && message[messageLength-1] != '\n')) { //WRONG LENGTH
 		
 		memset(message, 0, max_word_length+1);
 		sprintf(message, "Invalid guess length. The secret word is %ld letter(s)", strlen(secretWord));
