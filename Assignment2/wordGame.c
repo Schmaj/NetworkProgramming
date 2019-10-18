@@ -67,10 +67,12 @@ void broadcast(){
 
 // takes in file descriptor of communicating socket, a pointer to the list of clients
 // and the index of this client in that list
-void respond(struct client fd, struct client* clientList, int index){
+//
+// returns 0 normally, 1 if guess is correct and new word needs to be selected
+int respond(struct client fd, struct client* clientList, int index, char* secretWord){
 
 	broadcast();
-	return;
+	return 0;
 }
 
 // taken from qsort manpage example, used for sorting dictionary array
@@ -226,6 +228,102 @@ void addClient(int newFd, struct client* clients, int firstOpen, int numClients,
 
 }
 
+void disconnectClients(struct client* clients){
+	return;
+}
+
+int playGame(struct client* clients, int listenFd, char* secretWord, int wordSize){
+
+	while(1){
+		// structure to hold a set of file descriptors to watch
+		fd_set rfds;
+
+		// set rfds to include no file descriptors
+		FD_ZERO(&rfds);
+
+		// count number of clients currently connected
+		int activeClients = 0;
+
+		for(int n = 0; n < BACKLOG; n++){
+			// add all existing clients to the fd_set
+			if(clients[n].fd != NO_CLIENT){
+				FD_SET(clients[n].fd, &rfds);
+				activeClients++;
+			}
+		}
+
+		// add listening socket to fd_set
+		FD_SET(listenFd, &rfds);
+
+		// structure to specify TIMEOUT second timeout on select() call
+		struct timeval timeout;
+
+		timeout.tv_sec = TIMEOUT;
+		timeout.tv_usec = 0;
+
+		// wait for activity on listening socket, or any active client
+		int retval = select(activeClients + 1, &rfds, NULL, NULL, &timeout);
+
+		if(retval == 0){
+			printf("No Activity\n");
+			return 0;
+		}
+		else if(retval == -1){
+			perror("ERROR Select() failed\n");
+			return EXIT_FAILURE;
+		}
+
+		// check active clients for activity
+		for(int n = 0; n < BACKLOG; n++){
+			// if active client and there is activity
+			if(clients[n].fd != NO_CLIENT && FD_ISSET(clients[n].fd, &rfds)){
+				// respond to client's guess, if client guesses correctly (return value of 1), disconnect clients and start new game
+				if(respond(clients[n], clients, n, secretWord) == 1){
+					disconnectClients(clients);
+
+					//free();
+					
+					// end this round of the game
+					return 0;
+				}
+			}
+		}
+
+
+		// if listening socket has activity accept connection
+		if(FD_ISSET(listenFd, &rfds)){
+			// stores index of first unused client slot
+			int firstOpen = -1;
+
+			// check that a connection is available
+			for(int n = 0; n < BACKLOG; n++){
+				if(clients[n].fd != NO_CLIENT){
+					firstOpen = n;
+					break;
+				}
+			}
+
+			// if the maximum number of clients are currently connected, ignore this connection until
+			// a client disconnects
+			if(firstOpen == -1){
+				printf("Exceeded max number of clients, ignoring connection\n");
+				continue;
+			}
+	
+			// accept connection and store file descriptor to communicating socket		
+			int newFd = accept(listenFd, NULL, NULL);
+
+			if(newFd < 0){
+				perror("accept() failed\n");
+				return EXIT_FAILURE;
+			}
+
+			// resolve username and add file descriptor of new client to the list of clients
+			addClient(newFd, clients, firstOpen, activeClients, wordSize);
+
+		}
+	}
+}
 
 int main(int argc, char* argv[]){
 
@@ -250,12 +348,10 @@ int main(int argc, char* argv[]){
 
 	char** dictionary = calloc(64, sizeof(char*));
 
+	// create dictionary and return number of words
 	int num = buildDictionary(dictFile, dictionary, maxWordLen);
 
 	free(dictFile);
-
-	// TODO: select word
-	int wordSize = strlen(dictionary[0]);
 
 	#ifdef DEBUG_MODE
 		printf("Dict is:\n");
@@ -303,95 +399,35 @@ int main(int argc, char* argv[]){
 		return EXIT_FAILURE;
 	}
 
-	// create an array to hold each connected client
-	struct client clients[BACKLOG];
-	// initialize each file descriptor to -1, the chosen value to represent no client
-	for(int n = 0; n < BACKLOG; n++){
-		clients[n].fd = NO_CLIENT;
-		clients[n].username = NULL;
-	}
+	// seed the pseudo random number generator to select a word
+	srand(seed);
 
+	// loop for new rounds
 	while(1){
-		// structure to hold a set of file descriptors to watch
-		fd_set rfds;
 
-		// set rfds to include no file descriptors
-		FD_ZERO(&rfds);
+		// select random word in dictionary and save its index
+		int wordIndex = rand() % num;
 
-		// count number of clients currently connected
-		int activeClients = 0;
+		// number of letters in chosen word
+		int wordSize = strlen(dictionary[wordIndex]);
 
+		// create buffer and store secret word
+		char* secretWord = calloc(wordSize + 1, sizeof(char));
+		strncpy(secretWord, dictionary[wordIndex], wordSize + 1);
+
+		// create an array to hold each connected client
+		struct client clients[BACKLOG];
+		// initialize each file descriptor to -1, the chosen value to represent no client
 		for(int n = 0; n < BACKLOG; n++){
-			// add all existing clients to the fd_set
-			if(clients[n].fd != NO_CLIENT){
-				FD_SET(clients[n].fd, &rfds);
-				activeClients++;
-			}
+			clients[n].fd = NO_CLIENT;
+			clients[n].username = NULL;
 		}
 
-		// add listening socket to fd_set
-		FD_SET(listenFd, &rfds);
+		// interact with client and accept guesses until word is found
+		playGame(clients, listenFd, secretWord, wordSize);
 
-		// structure to specify TIMEOUT second timeout on select() call
-		struct timeval timeout;
-
-		timeout.tv_sec = TIMEOUT;
-		timeout.tv_usec = 0;
-
-		// wait for activity on listening socket, or any active client
-		int retval = select(activeClients + 1, &rfds, NULL, NULL, &timeout);
-
-		if(retval == 0){
-			printf("No Activity\n");
-			return 0;
-		}
-		else if(retval == -1){
-			perror("ERROR Select() failed\n");
-			return EXIT_FAILURE;
-		}
-
-		// check active clients for activity
-		for(int n = 0; n < BACKLOG; n++){
-			// if active client and there is activity
-			if(clients[n].fd != NO_CLIENT && FD_ISSET(clients[n].fd, &rfds)){
-				respond(clients[n], clients, n);
-			}
-		}
-
-
-		// if listening socket has activity accept connection
-		if(FD_ISSET(listenFd, &rfds)){
-			// stores index of first unused client slot
-			int firstOpen = -1;
-
-			// check that a connection is available
-			for(int n = 0; n < BACKLOG; n++){
-				if(clients[n].fd != NO_CLIENT){
-					firstOpen = n;
-					break;
-				}
-			}
-
-			// if the maximum number of clients are currently connected, ignore this connection until
-			// a client disconnects
-			if(firstOpen == -1){
-				printf("Exceeded max number of clients, ignoring connection\n");
-				continue;
-			}
-	
-			// accept connection and store file descriptor to communicating socket		
-			int newFd = accept(listenFd, NULL, NULL);
-
-			if(newFd < 0){
-				perror("accept() failed\n");
-				return EXIT_FAILURE;
-			}
-
-			// resolve username and add file descriptor of new client to the list of clients
-			addClient(newFd, clients, firstOpen, activeClients, wordSize);
-
-		}
 	}
+
 
 
 }
