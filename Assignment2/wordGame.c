@@ -52,6 +52,8 @@ Tell user how many players upon successful username
 // length of largest allowed username
 #define MAX_NAME 30
 
+#define GUESS_DICT_LEN 64
+
 // structure to hold client information
 struct client{
 	// file descriptor referring to socket communicating with client
@@ -93,10 +95,15 @@ static int
        }
 
 
-int buildDictionary(char* filename, char** dictionary, int wordSize){
+// takes in name of dictionary file, a pointer to the dictionary to be filled, and the maximum size of each word
+int buildDictionary(char* filename, char*** dictionaryPtr, int wordSize){
+
+	char** dictionary = *dictionaryPtr;
 
 	// open dictionary file
 	FILE* dictFile = fopen(filename, "r");
+
+	int size = GUESS_DICT_LEN;
 
 	// index in dictionary
 	int n = 0;
@@ -122,10 +129,24 @@ int buildDictionary(char* filename, char** dictionary, int wordSize){
 
 		dictionary[n] = word;
 		n++;
+
+		// if index surpasses that of our buffer to hold dictionary, expand the buffer
+		if(n == size){
+			// double size of array
+			size *= 2;
+
+			dictionary = realloc(dictionary, size * sizeof(char*));
+			if(dictionary == NULL){
+				perror("reallocarray() failed\n");
+				exit(EXIT_FAILURE);
+			}
+		}
 	}
 
 	// close dictionary file
 	fclose(dictFile);
+
+	*dictionaryPtr = dictionary;
 
 	return n;
 
@@ -201,7 +222,24 @@ void addClient(int newFd, struct client* clients, int firstOpen, int numClients,
 
 }
 
+// disconnects all clients and frees resources to prepare for next round
 void disconnectClients(struct client* clients){
+
+	for(int n = 0; n < BACKLOG; n++){
+		// if a client is present
+		if(clients[n].fd != NO_CLIENT){
+			// close socket
+			close(clients[n].fd);
+			clients[n].fd = NO_CLIENT;
+
+			// if client has a name, free memory
+			if(clients[n].username){
+				free(clients[n].username);
+				clients[n].username = NULL;
+			}
+		}
+	}
+
 	return;
 }
 
@@ -319,10 +357,10 @@ int main(int argc, char* argv[]){
 	// length of longest word in dictionary
 	int maxWordLen = atoi(argv[4]);
 
-	char** dictionary = calloc(64, sizeof(char*));
+	char** dictionary = calloc(GUESS_DICT_LEN, sizeof(char*));
 
 	// create dictionary and return number of words
-	int num = buildDictionary(dictFile, dictionary, maxWordLen);
+	int num = buildDictionary(dictFile, &dictionary, maxWordLen);
 
 	free(dictFile);
 
@@ -398,6 +436,8 @@ int main(int argc, char* argv[]){
 
 		// interact with client and accept guesses until word is found
 		playGame(clients, listenFd, secretWord, wordSize);
+
+		free(secretWord);
 
 	}
 
