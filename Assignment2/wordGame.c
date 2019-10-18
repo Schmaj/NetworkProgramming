@@ -43,6 +43,8 @@ Tell user how many players upon successful username
 
 #include <errno.h>
 
+#include <ctype.h>
+
 
 // number of clients allowed
 #define BACKLOG 5
