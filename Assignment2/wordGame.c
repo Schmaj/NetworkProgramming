@@ -105,7 +105,7 @@ int respond(struct client client, struct client* clientList,
 
 	} else if (messageLength != strlen(secretWord) + 1){ //WRONG LENGTH
 		memset(message, 0, max_word_length+1);
-		sprintf(message, "Invalid guess length. The secret word is %d letter(s)", strlen(secretWord));
+		sprintf(message, "Invalid guess length. The secret word is %ld letter(s)", strlen(secretWord));
 		write(client.fd, message, strlen(message));
 		return -1;
 	}
@@ -192,6 +192,9 @@ void addClient(int newFd, struct client* clients, int firstOpen, int numClients,
 
 		// read in user response
 		int bytesRead = read(newFd, buf, MAX_NAME);
+		if (bytesRead < 0){
+			perror("addClient, bytesRead");
+		}
 
 		// check if username is taken
 		for(int n = 0; n < BACKLOG; n++){
