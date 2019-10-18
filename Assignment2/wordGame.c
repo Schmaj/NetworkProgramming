@@ -84,6 +84,25 @@ int respond(struct client client, struct client* clientList,
 	int messageLength = read(client.fd, message, max_word_length+1);
 	if (messageLength < 0){//ERROR
 		perror("respond, messageLength");
+	} 
+	// tcp connection closed, remove client
+	else if(messageLength == 0){
+		// loop through clients to find disconnected client
+		for(int n = 0; n < BACKLOG; n++){
+			if(clientList[n].fd == client.fd){
+				// close socket, free memory, and reset array index
+				close(client.fd);
+				clientList[n].fd = NO_CLIENT;
+				if(clientList[n].username){
+					free(clientList[n].username);
+					clientList[n].username = NULL;
+				}
+				break;
+			}
+		}
+
+		return 0;
+
 	} else if (messageLength != strlen(secretWord) + 1){ //WRONG LENGTH
 		memset(message, 0, max_word_length+1);
 		sprintf(message, "Invalid guess length. The secret word is %d letter(s)", strlen(secretWord));
