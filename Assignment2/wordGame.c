@@ -73,8 +73,9 @@ void broadcast(struct client* clientList, char * message){
 	return;
 }
 
-int compareWord(int * lettersCorrect, int * placesCorrect, char * guess, char * secretWord){
-	return 0;
+
+void compareWord(unsigned int * lettersCorrect, unsigned int * placesCorrect, char * guess, char * secretWord){
+	return;
 }
 
 // takes in file descriptor of communicating socket, a pointer to the list of clients
@@ -109,21 +110,30 @@ int respond(struct client client, struct client* clientList,
 
 	} else if (messageLength != strlen(secretWord)+1
 			|| (messageLength == max_word_length+1 && message[messageLength-1] != '\n')) { //WRONG LENGTH
-		memset(message, 0, max_word_length+1);
-		sprintf(message, "Invalid guess length. The secret word is %ld letter(s)", strlen(secretWord));
-		write(client.fd, message, strlen(message));
+		
+		char response[64 + strlen(secretWord)];
+		memset(response, 0, 64 + strlen(secretWord));
+		sprintf(response, "Invalid guess length. The secret word is %ld letter(s)\n", strlen(secretWord));
+		write(client.fd, response, strlen(response));
 		return -1;
 	}
 
 	message[messageLength-1] = '\0';
 
-	int lettersCorrect, placesCorrect;
-	int compareResult = compareWord(&lettersCorrect, &placesCorrect, message, secretWord);
-	if (compareResult == -1){
-		perror("Respond, compareResult");
+	unsigned int lettersCorrect, placesCorrect;
+	compareWord(&lettersCorrect, &placesCorrect, message, secretWord);
+
+	char response[2048];
+	memset(response, 0, 2048);
+	
+	if (placesCorrect == strlen(secretWord)){ //CORRECT
+		sprintf(response, "%s has correctly guessed the word %s\n", client.username, secretWord);
+	} else {
+		sprintf(response, "%s guessed %s: %d letter(s) were correct and %d letter(s) were correctly placed.\n",
+			client.username, message, lettersCorrect, placesCorrect);
 	}
 
-	broadcast(clientList, message);
+	broadcast(clientList, response);
 	return 0;
 }
 
