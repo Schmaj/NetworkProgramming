@@ -83,7 +83,10 @@ int respond(struct client client, struct client* clientList,
 	if (messageLength < 0){//ERROR
 		perror("respond, messageLength");
 	} else if (messageLength != strlen(secretWord) + 1){ //WRONG LENGTH
-		
+		memset(message, 0, max_word_length+1);
+		sprintf(message, "Invalid guess length. The secret word is %d letter(s)", strlen(secretWord));
+		write(client.fd, message, strlen(message));
+		return -1;
 	}
 
 	broadcast(clientList, message);
