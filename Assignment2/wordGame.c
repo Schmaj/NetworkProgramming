@@ -78,7 +78,10 @@ void respond(struct client client, struct client* clientList, unsigned int max_w
 	memset(message, 0, max_word_length+1);
 
 	int messageLength = read(client.fd, message, max_word_length+1);
-	
+	if (messageLength < 0){//ERROR
+		perror("respond, messageLength");
+	}
+
 	broadcast(clientList, message);
 	return;
 }
