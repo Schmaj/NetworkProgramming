@@ -52,6 +52,8 @@ Tell user how many players upon successful username
 // length of largest allowed username
 #define MAX_NAME 30
 
+#define GUESS_DICT_LEN 64
+
 // structure to hold client information
 struct client{
 	// file descriptor referring to socket communicating with client
@@ -82,26 +84,46 @@ int respond(struct client client, struct client* clientList,
 	int messageLength = read(client.fd, message, max_word_length+1);
 	if (messageLength < 0){//ERROR
 		perror("respond, messageLength");
+	} 
+	// tcp connection closed, remove client
+	else if(messageLength == 0){
+		// loop through clients to find disconnected client
+		for(int n = 0; n < BACKLOG; n++){
+			if(clientList[n].fd == client.fd){
+				// close socket, free memory, and reset array index
+				close(client.fd);
+				clientList[n].fd = NO_CLIENT;
+				if(clientList[n].username){
+					free(clientList[n].username);
+					clientList[n].username = NULL;
+				}
+				break;
+			}
+		}
 
-	} else if (messageLength != strlen(secretWord)+1 
-			|| (messageLength == strlen(secretWord)+1 && message[messageLength-1] != '\n')) { //WRONG LENGTH
-		
+		return 0;
+
+	} else if (messageLength != strlen(secretWord) + 1){ //WRONG LENGTH
 		memset(message, 0, max_word_length+1);
-		sprintf(message, "Invalid guess length. The secret word is %ld letter(s)", strlen(secretWord));
+		sprintf(message, "Invalid guess length. The secret word is %d letter(s)", strlen(secretWord));
 		write(client.fd, message, strlen(message));
 		return -1;
 	}
-	
-	message[messageLength-1] = '\0';
 
 	broadcast(clientList, message);
 	return 0;
 }
 
-int buildDictionary(char* filename, char** dictionary, int wordSize){
+
+// takes in name of dictionary file, a pointer to the dictionary to be filled, and the maximum size of each word
+int buildDictionary(char* filename, char*** dictionaryPtr, int wordSize){
+
+	char** dictionary = *dictionaryPtr;
 
 	// open dictionary file
 	FILE* dictFile = fopen(filename, "r");
+
+	int size = GUESS_DICT_LEN;
 
 	// index in dictionary
 	int n = 0;
@@ -127,10 +149,24 @@ int buildDictionary(char* filename, char** dictionary, int wordSize){
 
 		dictionary[n] = word;
 		n++;
+
+		// if index surpasses that of our buffer to hold dictionary, expand the buffer
+		if(n == size){
+			// double size of array
+			size *= 2;
+
+			dictionary = realloc(dictionary, size * sizeof(char*));
+			if(dictionary == NULL){
+				perror("reallocarray() failed\n");
+				exit(EXIT_FAILURE);
+			}
+		}
 	}
 
 	// close dictionary file
 	fclose(dictFile);
+
+	*dictionaryPtr = dictionary;
 
 	return n;
 
@@ -156,9 +192,6 @@ void addClient(int newFd, struct client* clients, int firstOpen, int numClients,
 
 		// read in user response
 		int bytesRead = read(newFd, buf, MAX_NAME);
-		if (bytesRead < 0){
-			perror("addClient, bytesRead");
-		}
 
 		// check if username is taken
 		for(int n = 0; n < BACKLOG; n++){
@@ -209,7 +242,24 @@ void addClient(int newFd, struct client* clients, int firstOpen, int numClients,
 
 }
 
+// disconnects all clients and frees resources to prepare for next round
 void disconnectClients(struct client* clients){
+
+	for(int n = 0; n < BACKLOG; n++){
+		// if a client is present
+		if(clients[n].fd != NO_CLIENT){
+			// close socket
+			close(clients[n].fd);
+			clients[n].fd = NO_CLIENT;
+
+			// if client has a name, free memory
+			if(clients[n].username){
+				free(clients[n].username);
+				clients[n].username = NULL;
+			}
+		}
+	}
+
 	return;
 }
 
@@ -327,10 +377,10 @@ int main(int argc, char* argv[]){
 	// length of longest word in dictionary
 	int maxWordLen = atoi(argv[4]);
 
-	char** dictionary = calloc(64, sizeof(char*));
+	char** dictionary = calloc(GUESS_DICT_LEN, sizeof(char*));
 
 	// create dictionary and return number of words
-	int num = buildDictionary(dictFile, dictionary, maxWordLen);
+	int num = buildDictionary(dictFile, &dictionary, maxWordLen);
 
 	free(dictFile);
 
@@ -406,6 +456,8 @@ int main(int argc, char* argv[]){
 
 		// interact with client and accept guesses until word is found
 		playGame(clients, listenFd, secretWord, wordSize);
+
+		free(secretWord);
 
 	}
 
