@@ -82,6 +82,8 @@ int respond(struct client client, struct client* clientList,
 	int messageLength = read(client.fd, message, max_word_length+1);
 	if (messageLength < 0){//ERROR
 		perror("respond, messageLength");
+	} else if (messageLength != strlen(secretWord) + 1){ //WRONG LENGTH
+		
 	}
 
 	broadcast(clientList, message);
