@@ -73,23 +73,15 @@ void broadcast(struct client* clientList, char * message){
 
 // takes in file descriptor of communicating socket, a pointer to the list of clients
 // and the index of this client in that list
-void respond(struct client fd, struct client* clientList, int index){
-	char * message;
+void respond(struct client client, struct client* clientList, unsigned int max_word_length){
+	char message[max_word_length+1];
+	memset(message, 0, max_word_length+1);
+
+	int messageLength = read(client.fd, message, max_word_length+1);
+	
 	broadcast(clientList, message);
 	return;
 }
-
-// taken from qsort manpage example, used for sorting dictionary array
-static int
-       cmpstringp(const void *p1, const void *p2)
-       {
-           /* The actual arguments to this function are "pointers to
-              pointers to char", but strcmp(3) arguments are "pointers
-              to char", hence the following cast plus dereference */
-
-           return strcmp(* (char * const *) p1, * (char * const *) p2);
-       }
-
 
 int buildDictionary(char* filename, char** dictionary, int wordSize){
 
