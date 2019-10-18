@@ -1,3 +1,3 @@
 wordGame: wordGame.c
-	gcc -o word_guess.out wordGame.c
+	gcc -Wall -Werror -o word_guess.out wordGame.c
 
