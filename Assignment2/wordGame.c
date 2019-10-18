@@ -62,6 +62,22 @@ struct client{
 	char* username;
 };
 
+// compares strings s1 and s2 of length len when all characters are set to lowercase
+// returns 0 if words match, 1 if they do not
+int caselessCmp(char* s1, char* s2, int len){
+
+	for(int n = 0; n < len; n++){
+		// if letters do not match
+		if(tolower(s1[n]) != tolower(s2[n])){
+			return 1;
+		}
+	}
+
+	// words match
+	return 0;
+
+}
+
 // sends message to all clients
 void broadcast(struct client* clientList, char * message){
 	for (unsigned int i = 0; i < BACKLOG; ++i){
