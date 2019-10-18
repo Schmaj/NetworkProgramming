@@ -61,7 +61,13 @@ struct client{
 };
 
 // sends message to all clients
-void broadcast(){
+void broadcast(struct client* clientList, char * message){
+	for (unsigned int i = 0; i < BACKLOG; ++i){
+		if (clientList[i].fd == -1){
+			continue;
+		}
+		write(clientList[i].fd, message, strlen(message));
+	}
 	return;
 }
 
@@ -70,8 +76,8 @@ void broadcast(){
 //
 // returns 0 normally, 1 if guess is correct and new word needs to be selected
 int respond(struct client fd, struct client* clientList, int index, char* secretWord){
-
-	broadcast();
+	char * message;
+	broadcast(clientList, message);
 	return 0;
 }
 
@@ -121,42 +127,9 @@ int buildDictionary(char* filename, char** dictionary, int wordSize){
 	// close dictionary file
 	fclose(dictFile);
 
-	// sort the strings in dictionary in alphabetical order
-	qsort(dictionary, n, sizeof(char*), cmpstringp);
-
 	return n;
 
 }
-
-/*
-void testQueueSort(){
-	char** list = calloc(3, sizeof(char*));
-	char* a = "abc";
-	char* b = "def";
-	char* c = "ghi";
-
-	list[0] = c;
-	list[1] = a;
-	list[2] = b;
-
-	printf("pre-sort list:\n%s\n%s\n%s\n", list[0], list[1], list[2]);
-
-	// prints ghi then abc then def
-
-	// pointer to first element, number of elements, comparison function (cast to correct pointer type)
-	qsort(list, 3, sizeof(char*), (int (*)(const void*,const void*))strcmp);
-
-	printf("post-sort list:\n%s\n%s\n%s\n", list[0], list[1], list[2]);
-
-	// prints abc then def then ghi
-
-
-
-	// above example is wrong but happened to work, can't use strcmp directly, need cmpstringp defined further above
-
-}
-
-*/
 
 // communicates with client to resolve username, then adds client to clients array
 void addClient(int newFd, struct client* clients, int firstOpen, int numClients, int numLetters){
