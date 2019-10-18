@@ -91,6 +91,7 @@ int respond(struct client client, struct client* clientList,
 		write(client.fd, message, strlen(message));
 		return -1;
 	}
+	
 	message[messageLength-1] = '\0';
 
 	broadcast(clientList, message);
