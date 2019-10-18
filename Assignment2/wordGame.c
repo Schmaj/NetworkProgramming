@@ -75,24 +75,25 @@ void broadcast(struct client* clientList, char * message){
 
 // takes in file descriptor of communicating socket, a pointer to the list of clients
 // and the index of this client in that list
-//
-// returns 0 normally, 1 if guess is correct and new word needs to be selected
-int respond(struct client fd, struct client* clientList, int index, char* secretWord){
-	char * message;
+int respond(struct client client, struct client* clientList, 
+		unsigned int max_word_length, char* secretWord){
+
+	char message[max_word_length+1];
+	memset(message, 0, max_word_length+1);
+
+	int messageLength = read(client.fd, message, max_word_length+1);
+	if (messageLength < 0){//ERROR
+		perror("respond, messageLength");
+	} else if (messageLength != strlen(secretWord) + 1){ //WRONG LENGTH
+		memset(message, 0, max_word_length+1);
+		sprintf(message, "Invalid guess length. The secret word is %d letter(s)", strlen(secretWord));
+		write(client.fd, message, strlen(message));
+		return -1;
+	}
+
 	broadcast(clientList, message);
 	return 0;
 }
-
-// taken from qsort manpage example, used for sorting dictionary array
-static int
-       cmpstringp(const void *p1, const void *p2)
-       {
-           /* The actual arguments to this function are "pointers to
-              pointers to char", but strcmp(3) arguments are "pointers
-              to char", hence the following cast plus dereference */
-
-           return strcmp(* (char * const *) p1, * (char * const *) p2);
-       }
 
 
 // takes in name of dictionary file, a pointer to the dictionary to be filled, and the maximum size of each word
