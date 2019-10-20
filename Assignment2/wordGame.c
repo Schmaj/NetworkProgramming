@@ -97,8 +97,20 @@ void broadcast(struct client* clientList, char * message){
 	return;
 }
 
-
+//compares guess to secret word, 
+//saving the number of letters correct and the locations correct in the variables
+//guess, and secretWord MUST be NULL terminated and the same length
 void compareWord(unsigned int * lettersCorrect, unsigned int * placesCorrect, char * guess, char * secretWord){
+	lettersCorrect = 0;
+	placesCorrect = 0;
+	char mutableGuess[strlen(guess)+1];
+	memset(mutableGuess, 0, strlen(guess)+1);
+	strncpy(mutableGuess, guess, strlen(guess)+1);
+	for (unsigned int i = 0; i < strlen(mutableGuess); ++i){
+		for (unsigned int j = 0; j < strlen(secretWord); ++j){
+			
+		}
+	}
 	return;
 }
 
@@ -137,7 +149,7 @@ int respond(struct client client, struct client* clientList,
 		
 		char response[64 + strlen(secretWord)];
 		memset(response, 0, 64 + strlen(secretWord));
-		sprintf(response, "Invalid guess length. The secret word is %ld letter(s)\n", strlen(secretWord));
+		sprintf(response, "Invalid guess length. The secret word is %ld letter(s).\n", strlen(secretWord));
 		write(client.fd, response, strlen(response));
 		return -1;
 	}
@@ -151,7 +163,7 @@ int respond(struct client client, struct client* clientList,
 	memset(response, 0, 2048);
 	
 	if (placesCorrect == strlen(secretWord)){ //CORRECT
-		sprintf(response, "%s has correctly guessed the word %s\n", client.username, secretWord);
+		sprintf(response, "%s has correctly guessed the word %s.\n", client.username, secretWord);
 	} else {
 		sprintf(response, "%s guessed %s: %d letter(s) were correct and %d letter(s) were correctly placed.\n",
 			client.username, message, lettersCorrect, placesCorrect);
