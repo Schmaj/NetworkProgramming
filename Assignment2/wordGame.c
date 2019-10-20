@@ -106,8 +106,10 @@ void compareWord(unsigned int * lettersCorrect, unsigned int * placesCorrect, ch
 	char mutableGuess[strlen(guess)+1];
 	memset(mutableGuess, 0, strlen(guess)+1);
 	strncpy(mutableGuess, guess, strlen(guess)+1);
-	for (unsigned int i = 0; i < strlen(mutableGuess); ++i){
-		for (unsigned int j = 0; j < strlen(secretWord); ++j){
+	unsigned int length = strlen(secretWord);
+
+	for (unsigned int i = 0; i < length; ++i){
+		for (unsigned int j = 0; j < length; ++j){
 			
 		}
 	}
