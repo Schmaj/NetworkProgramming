@@ -101,26 +101,30 @@ void broadcast(struct client* clientList, char * message){
 //saving the number of letters correct and the locations correct in the variables
 //guess, and secretWord MUST be NULL terminated and the same length
 void compareWord(unsigned int * lettersCorrect, unsigned int * placesCorrect, char * guess, char * secretWord){
-	lettersCorrect = 0;
-	placesCorrect = 0;
+	*lettersCorrect = 0;
+	*placesCorrect = 0;
 	char mutableGuess[strlen(guess)+1];
 	memset(mutableGuess, 0, strlen(guess)+1);
 	strncpy(mutableGuess, guess, strlen(guess)+1);
 	unsigned int length = strlen(secretWord);
 
-	for (unsigned int i = 0; i < length; ++i){
-		for (unsigned int j = 0; j < length; ++j){
-			if (secretWord[i] == mutableGuess[j]){
+	for (int i = 0; i < length; ++i){
+		for (int n = 0; n < length; ++n){
+
+			if (tolower(secretWord[i]) == tolower(mutableGuess[n])){
 
 				//same location
-				if (i == j){ placesCorrect++; }
+				if (i == n){ (*placesCorrect)++; }
 
-				lettersCorrect++;
-				mutableGuess[j] = 0;
-				continue;
+				//replace matching letter with symbol, reset n, go to next letter, increment
+				mutableGuess[n] = '0';
+				n = -1;
+				i++;
+				(*lettersCorrect)++;
 			}
 		}
 	}
+
 	return;
 }
 
