@@ -110,7 +110,15 @@ void compareWord(unsigned int * lettersCorrect, unsigned int * placesCorrect, ch
 
 	for (unsigned int i = 0; i < length; ++i){
 		for (unsigned int j = 0; j < length; ++j){
-			
+			if (secretWord[i] == mutableGuess[j]){
+
+				//same location
+				if (i == j){ placesCorrect++; }
+
+				lettersCorrect++;
+				mutableGuess[j] = 0;
+				continue;
+			}
 		}
 	}
 	return;
