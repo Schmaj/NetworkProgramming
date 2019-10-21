@@ -54,7 +54,7 @@ Tell user how many players upon successful username
 // length of largest allowed username
 #define MAX_NAME 30
 
-#define GUESS_DICT_LEN 64
+#define GUESS_DICT_LEN 499329
 
 // structure to hold client information
 struct client{
@@ -341,12 +341,20 @@ void disconnectClients(struct client* clients){
 
 int playGame(struct client* clients, int listenFd, char* secretWord, int wordSize){
 
+	#ifdef DEBUG_2
+		printf("Listening fd is %d\n", listenFd);
+	#endif
+
+	// structure to hold a set of file descriptors to watch
+	fd_set rfds;
+
+
 	while(1){
-		// structure to hold a set of file descriptors to watch
-		fd_set rfds;
 
 		// set rfds to include no file descriptors
 		FD_ZERO(&rfds);
+
+		int maxFd = listenFd;
 
 		// count number of clients currently connected
 		int activeClients = 0;
@@ -356,8 +364,16 @@ int playGame(struct client* clients, int listenFd, char* secretWord, int wordSiz
 			if(clients[n].fd != NO_CLIENT){
 				FD_SET(clients[n].fd, &rfds);
 				activeClients++;
+
+				if(clients[n].fd > maxFd){
+					maxFd = clients[n].fd;
+				}
 			}
 		}
+
+		#ifdef DEBUG_2
+			printf("Active clients is: %d\n", activeClients);
+		#endif
 
 		// add listening socket to fd_set
 		FD_SET(listenFd, &rfds);
@@ -369,11 +385,12 @@ int playGame(struct client* clients, int listenFd, char* secretWord, int wordSiz
 		timeout.tv_usec = 0;
 
 		// wait for activity on listening socket, or any active client
-		int retval = select(activeClients + 1, &rfds, NULL, NULL, &timeout);
+		int retval = select(maxFd + 1, &rfds, NULL, NULL, &timeout);
 
 		if(retval == 0){
 			printf("No Activity\n");
-			return 0;
+			continue;
+			//return 0;
 		}
 		else if(retval == -1){
 			perror("ERROR Select() failed\n");
@@ -391,6 +408,9 @@ int playGame(struct client* clients, int listenFd, char* secretWord, int wordSiz
 					//free();
 					
 					// end this round of the game
+					#ifdef DEBUG_2
+						printf("Ending game\n");
+					#endif
 					return 0;
 				}
 			}
@@ -399,12 +419,15 @@ int playGame(struct client* clients, int listenFd, char* secretWord, int wordSiz
 
 		// if listening socket has activity accept connection
 		if(FD_ISSET(listenFd, &rfds)){
+			#ifdef DEBUG_2
+				printf("listenfd activity\n");
+			#endif
 			// stores index of first unused client slot
 			int firstOpen = -1;
 
 			// check that a connection is available
 			for(int n = 0; n < BACKLOG; n++){
-				if(clients[n].fd != NO_CLIENT){
+				if(clients[n].fd == NO_CLIENT){
 					firstOpen = n;
 					break;
 				}
@@ -419,6 +442,10 @@ int playGame(struct client* clients, int listenFd, char* secretWord, int wordSiz
 	
 			// accept connection and store file descriptor to communicating socket		
 			int newFd = accept(listenFd, NULL, NULL);
+
+			#ifdef DEBUG_2
+				printf("Accepted connection\n");
+			#endif
 
 			if(newFd < 0){
 				perror("accept() failed\n");
@@ -472,6 +499,10 @@ int main(int argc, char* argv[]){
 
 	// file descriptor listening for new connections
 	int listenFd = socket(PF_INET, SOCK_STREAM, 0);
+
+	#ifdef DEBUG_2
+		printf("Listening fd is %d\n", listenFd);
+	#endif
 
 	if(listenFd < 0){
 		perror("socket() failed\n");
@@ -529,6 +560,10 @@ int main(int argc, char* argv[]){
 			clients[n].fd = NO_CLIENT;
 			clients[n].username = NULL;
 		}
+
+		#ifdef DEBUG_2
+			printf("Secret word is: %s\n", secretWord);
+		#endif
 
 		// interact with client and accept guesses until word is found
 		playGame(clients, listenFd, secretWord, wordSize);
