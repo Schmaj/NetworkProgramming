@@ -302,7 +302,7 @@ void addClient(int newFd, struct client* clients, int firstOpen, int numClients,
 			sprintf(invite, "Let's start playing, %s\n", buf);
 			write(newFd, invite, strlen(invite));
 
-			sprintf(invite, "There are %d player(s) playing. The secret word is %d letters.\n", numClients, numLetters);
+			sprintf(invite, "There are %d player(s) playing. The secret word is %d letters.\n", numClients + 1, numLetters);
 			write(newFd, invite, strlen(invite));
 
 
@@ -405,7 +405,7 @@ int playGame(struct client* clients, int listenFd, char* secretWord, int wordSiz
 			// if active client and there is activity
 			if(clients[n].fd != NO_CLIENT && FD_ISSET(clients[n].fd, &rfds)){
 				// respond to client's guess, if client guesses correctly (return value of 1), disconnect clients and start new game
-				if(respond(clients[n], clients, n, secretWord) == 1){
+				if(respond(clients[n], clients, wordSize, secretWord) == 1){
 					disconnectClients(clients);
 
 					//free();
