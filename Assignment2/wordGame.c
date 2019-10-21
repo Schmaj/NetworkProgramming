@@ -163,7 +163,7 @@ int respond(struct client client, struct client* clientList,
 		
 		char response[64 + strlen(secretWord)];
 		memset(response, 0, 64 + strlen(secretWord));
-		sprintf(response, "Invalid guess length. The secret word is %ld letter(s).\n", strlen(secretWord));
+		sprintf(response, "Invalid guess length. The secret word is %ld letter(s).", strlen(secretWord));
 		write(client.fd, response, strlen(response));
 		return -1;
 	}
@@ -177,11 +177,11 @@ int respond(struct client client, struct client* clientList,
 	memset(response, 0, 2048);
 	
 	if (placesCorrect == strlen(secretWord)){ //CORRECT
-		sprintf(response, "%s has correctly guessed the word %s.\n", client.username, secretWord);
+		sprintf(response, "%s has correctly guessed the word %s.", client.username, secretWord);
 		broadcast(clientList, response);
 		return 1;
 	} else {
-		sprintf(response, "%s guessed %s: %d letter(s) were correct and %d letter(s) were correctly placed.\n",
+		sprintf(response, "%s guessed %s: %d letter(s) were correct and %d letter(s) were correctly placed.",
 			client.username, message, lettersCorrect, placesCorrect);
 		broadcast(clientList, response);
 		return 0;
@@ -277,8 +277,8 @@ void addClient(int newFd, struct client* clients, int firstOpen, int numClients,
 			// if client has a username and it is the same as the current response
 			if(clients[n].username && caselessCmp(clients[n].username, buf) == 0){
 				// send invalid username response
-				char* inval = calloc(strlen("Username  is already taken, please enter a different username\n") + MAX_NAME, sizeof(char));
-				sprintf(inval, "Username %s is already taken, please enter a different username\n", buf);
+				char* inval = calloc(strlen("Username  is already taken, please enter a different username") + MAX_NAME, sizeof(char));
+				sprintf(inval, "Username %s is already taken, please enter a different username", buf);
 				write(newFd, inval, strlen(inval));
 				// free allocated memory and wait for next response
 				free(inval);
@@ -298,11 +298,10 @@ void addClient(int newFd, struct client* clients, int firstOpen, int numClients,
 			// send confirm username is correct and send message with number of players and size of word
 
 			// strlen argument is the longer of the two messages that will be stored in this buffer
-			char* invite = calloc(strlen("There are  player(s) playing. The secret word is  letters.\n") + MAX_NAME, sizeof(char));
-			sprintf(invite, "Let's start playing, %s\n", buf);
+			char* invite = calloc(strlen("There are  player(s) playing. The secret word is  letters.") + MAX_NAME, sizeof(char));
+			sprintf(invite, "Let's start playing, %s", buf);
 			write(newFd, invite, strlen(invite));
-
-			sprintf(invite, "There are %d player(s) playing. The secret word is %d letters.\n", numClients + 1, numLetters);
+			sprintf(invite, "There are %d player(s) playing. The secret word is %d letters.", numClients+1, numLetters);
 			write(newFd, invite, strlen(invite));
 
 
@@ -412,7 +411,7 @@ int playGame(struct client* clients, int listenFd, char* secretWord, int wordSiz
 					
 					// end this round of the game
 					#ifdef DEBUG_2
-						printf("Ending game\n");
+						printf("Ending game");
 					#endif
 					return 0;
 				}
@@ -439,7 +438,7 @@ int playGame(struct client* clients, int listenFd, char* secretWord, int wordSiz
 			// if the maximum number of clients are currently connected, ignore this connection until
 			// a client disconnects
 			if(firstOpen == -1){
-				printf("Exceeded max number of clients, ignoring connection\n");
+				printf("Exceeded max number of clients, ignoring connection");
 				continue;
 			}
 	
