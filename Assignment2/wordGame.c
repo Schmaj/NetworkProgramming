@@ -50,7 +50,7 @@ Tell user how many players upon successful username
 #define BACKLOG 5
 #define NO_CLIENT -1
 #define TIMEOUT 15
-#define WELCOME_MESSAGE "Welcome to Guess the Word, please enter your username\n"
+#define WELCOME_MESSAGE "Welcome to Guess the Word, please enter your username"
 // length of largest allowed username
 #define MAX_NAME 30
 
@@ -271,6 +271,8 @@ void addClient(int newFd, struct client* clients, int firstOpen, int numClients,
 		if (bytesRead < 0){
 			perror("addClient, bytesRead");
 		}
+
+		buf[bytesRead-1] = '\0';
 
 		// check if username is taken
 		for(int n = 0; n < BACKLOG; n++){
