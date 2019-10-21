@@ -178,13 +178,16 @@ int respond(struct client client, struct client* clientList,
 	
 	if (placesCorrect == strlen(secretWord)){ //CORRECT
 		sprintf(response, "%s has correctly guessed the word %s.\n", client.username, secretWord);
+		broadcast(clientList, response);
+		return 1;
 	} else {
 		sprintf(response, "%s guessed %s: %d letter(s) were correct and %d letter(s) were correctly placed.\n",
 			client.username, message, lettersCorrect, placesCorrect);
+		broadcast(clientList, response);
+		return 0;
 	}
 
-	broadcast(clientList, response);
-	return 0;
+	
 }
 
 
