@@ -108,13 +108,16 @@ void compareWord(unsigned int * lettersCorrect, unsigned int * placesCorrect, ch
 	strncpy(mutableGuess, guess, strlen(guess)+1);
 	unsigned int length = strlen(secretWord);
 
+	for (unsigned int i = 0; i < length; ++i){
+		if (tolower(secretWord[i]) == tolower(guess[i])){
+			(*placesCorrect)++;
+		}
+	}
+
 	for (int i = 0; i < length; ++i){
 		for (int n = 0; n < length; ++n){
 
 			if (tolower(secretWord[i]) == tolower(mutableGuess[n])){
-
-				//same location
-				if (i == n){ (*placesCorrect)++; }
 
 				//replace matching letter with symbol, reset n, go to next letter, increment
 				mutableGuess[n] = '0';
