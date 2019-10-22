@@ -15,6 +15,14 @@ Schmalz, Jonathon (schmaj@rpi.edu)
    Password: napier
 
 4. Uploaded: 111.png
-   Downloaded: manual.txt
+   
+5. Downloaded: manual.txt
 
-5. 
+6. Packet No.: 21
+
+7. TCP Port: 1078
+
+8. Files: 1.docx
+		  manual.txt
+
+9.  
