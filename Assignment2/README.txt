@@ -8,9 +8,8 @@ wordGame.c: A server that communicates using TCP, that supports up to 5 clients,
 	After each incorrect guess, the number of letters correct and letters correctly placed is broadcasted to all.
 	Upon a correct guess by a client, the server send a message to all clients, and disconnects all clients.
 
-Issues: Miscommunication and misunderstanding of the specifications lead to most of the problems.
-	We were under the impression that once a transfer was complete, the server disconnected from the client and would not listen for more operations. Therefore, we failed many tests in the beginning.
-	Submitty also caused problems in the debugging stage, due to it crashing or otherwise being unable to autograde our submissions. 
+Issues: We are missing 2 points in Test 7 for an unknown error. We have no idea how to debug the 	 error. It seems to be a client-side error, however, due to the output above it saying
+	"CLIENT ERROR".
 
 Approximate Total Man Hours: 12 Hrs.
 
