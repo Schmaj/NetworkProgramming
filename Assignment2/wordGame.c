@@ -1,29 +1,3 @@
-/* game not case sensitive:
-		is dictionary case sensitive? with regards to sorting, do 
-		we need to lowercase before sorting?
-
-		are usernames case sensitive?
-
-		bob's broadcasted guess uses lower or upper case letters
-		as he used them, the string sent to everyone maintains the 
-		case used by bob
-
-
-Single threaded, single process application:
-	we listen for current connections before new ones, and current connections
-	are dealt with in a specific order
-		what should that order be?
-		what if someone disconnects and someone else connects between two select calls?
-			order client vs accept affects number of players sent
-
-		order clients are dealt with affects order of broadcasts sent and received
-
-Tell user how many players upon successful username
-	Same message or second message?
-
-*/
-
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -48,14 +22,17 @@ Tell user how many players upon successful username
 
 // number of clients allowed
 #define BACKLOG 5
+// constant value for field fd to represent that no client has connected corresponding to a struct client
 #define NO_CLIENT -1
+// number of seconds to wait on select call
 #define TIMEOUT 15
 #define WELCOME_MESSAGE "Welcome to Guess the Word, please enter your username."
 // length of largest allowed username
 #define MAX_NAME 30
 // no word will exceed this many bytes, as expressed in specification
 #define MAX_WORD 1024
-
+// set a little higher than the value given as the dictionary length, to not use realloc
+// were a larger dictionary give, that case would still be handled
 #define GUESS_DICT_LEN 499329
 
 // structure to hold client information
@@ -110,15 +87,18 @@ void compareWord(unsigned int * lettersCorrect, unsigned int * placesCorrect, ch
 	strncpy(mutableGuess, guess, strlen(guess)+1);
 	unsigned int length = strlen(secretWord);
 
+	// check position by position to see if letters correctly match, store result placesCorrect
 	for (unsigned int i = 0; i < length; ++i){
 		if (tolower(secretWord[i]) == tolower(guess[i])){
 			(*placesCorrect)++;
 		}
 	}
 
+	// loop through each letter in the secret word
 	for (int i = 0; i < length; ++i){
+		// loop through each letter in the mutable guess
 		for (int n = 0; n < length; ++n){
-
+			// if the letter in the secret word matches any letter in the mutable guess
 			if (tolower(secretWord[i]) == tolower(mutableGuess[n])){
 
 				//replace matching letter with symbol, reset n, go to next letter, increment
@@ -135,6 +115,16 @@ void compareWord(unsigned int * lettersCorrect, unsigned int * placesCorrect, ch
 
 // takes in file descriptor of communicating socket, a pointer to the list of clients
 // and the index of this client in that list
+// reads guess from client.  
+//	If no bytes are read, client hung up, closes corresponding socket and returns
+//
+//	If guess is incorrect length, sends message only to the client that
+// 	made the guess saying the guess was wrong
+//
+//	If guess is correct length, sends guess and number of correct positions and letters
+//	to all connected clients
+//
+//	If guess is correct word, sends message notifying all clients and returns 1	
 int respond(struct client client, struct client* clientList, 
 		unsigned int max_word_length, char* secretWord){
 
@@ -197,6 +187,7 @@ int respond(struct client client, struct client* clientList,
 
 
 // takes in name of dictionary file, a pointer to the dictionary to be filled, and the maximum size of each word
+// returns number of elements in dictionary
 int buildDictionary(char* filename, char*** dictionaryPtr, int wordSize){
 
 	char** dictionary = *dictionaryPtr;
@@ -308,13 +299,10 @@ void addClient(int newFd, struct client* clients, int firstOpen, int numClients,
 			char* invite = calloc(strlen("There are  player(s) playing. The secret word is letter(s).") + MAX_NAME, sizeof(char));
 			sprintf(invite, "Let's start playing, %s", buf);
 			write(newFd, invite, strlen(invite));
-			/*
-			for (unsigned int i = 0; i < 2000; ++i){
-				if ( i % 250 == 0){
-					++i;
-				}
-			}
-			*/
+			// small sleep to fix issue with "Let's start playing..." and "There are ..." messages both arriving before client on submitty reads,
+			// causing both messages to be combined into a single output
+			//
+			// sleep for half of a second
 			usleep(1000 * 500);
 			sprintf(invite, "There are %d player(s) playing. The secret word is %d letter(s).", numClients+1, numLetters);
 			write(newFd, invite, strlen(invite));
@@ -336,6 +324,7 @@ void addClient(int newFd, struct client* clients, int firstOpen, int numClients,
 }
 
 // disconnects all clients and frees resources to prepare for next round
+// called when correct word is guessed and round ends
 void disconnectClients(struct client* clients){
 
 	for(int n = 0; n < BACKLOG; n++){
@@ -356,6 +345,9 @@ void disconnectClients(struct client* clients){
 	return;
 }
 
+// main loop of program, adds all connected clients and socket for accepting new connections to 
+// an fd_set and uses select to interact with the relevant sockets
+// accepts new connects and calls the respond function to interact with existing clients
 int playGame(struct client* clients, int listenFd, char* secretWord, int wordSize){
 
 	#ifdef DEBUG_2
@@ -365,7 +357,7 @@ int playGame(struct client* clients, int listenFd, char* secretWord, int wordSiz
 	// structure to hold a set of file descriptors to watch
 	fd_set rfds;
 
-
+	// loop until round ends
 	while(1){
 
 		// set rfds to include no file descriptors
@@ -421,8 +413,6 @@ int playGame(struct client* clients, int listenFd, char* secretWord, int wordSiz
 				// respond to client's guess, if client guesses correctly (return value of 1), disconnect clients and start new game
 				if(respond(clients[n], clients, wordSize, secretWord) == 1){
 					disconnectClients(clients);
-
-					//free();
 					
 					// end this round of the game
 					#ifdef DEBUG_2
@@ -476,6 +466,8 @@ int playGame(struct client* clients, int listenFd, char* secretWord, int wordSiz
 	}
 }
 
+// creates listening socket, builds dictionary file, and creates array of struct client
+// loops over picking new words in dictionary and calling playGame until process is killed
 int main(int argc, char* argv[]){
 
 	// check for correct number of arguments
