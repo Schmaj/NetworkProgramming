@@ -1,4 +1,8 @@
 Conley, Andrew (conlea@rpi.edu)
 Schmalz, Jonathon (schmaj@rpi.edu)
 
-1.
+1. Commands: LIST
+			 STOR 111.png
+			 LIST
+			 LIST
+			 RETR manual.txt
