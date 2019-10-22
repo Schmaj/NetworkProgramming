@@ -138,7 +138,7 @@ int respond(struct client client, struct client* clientList,
 	char message[MAX_WORD+1];
 	memset(message, 0, MAX_WORD+1);
 
-	int messageLength = read(client.fd, message, max_word_length+1);
+	int messageLength = read(client.fd, message, MAX_WORD+1);
 	if (messageLength < 0){//ERROR
 		perror("respond, messageLength\n");
 	} 
