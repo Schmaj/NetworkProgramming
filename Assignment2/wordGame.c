@@ -308,7 +308,7 @@ void addClient(int newFd, struct client* clients, int firstOpen, int numClients,
 			char* invite = calloc(strlen("There are  player(s) playing. The secret word is letter(s).") + MAX_NAME, sizeof(char));
 			sprintf(invite, "Let's start playing, %s", buf);
 			write(newFd, invite, strlen(invite));
-			sprintf(invite, "There are %d player(s) playing. The secret word is %d letters.", numClients+1, numLetters);
+			sprintf(invite, "There are %d player(s) playing. The secret word is %d letter(s).", numClients+1, numLetters);
 			write(newFd, invite, strlen(invite));
 
 
