@@ -50,7 +50,7 @@ Tell user how many players upon successful username
 #define BACKLOG 5
 #define NO_CLIENT -1
 #define TIMEOUT 15
-#define WELCOME_MESSAGE "Welcome to Guess the Word, please enter your username"
+#define WELCOME_MESSAGE "Welcome to Guess the Word, please enter your username."
 // length of largest allowed username
 #define MAX_NAME 30
 // no word will exceed this many bytes, as expressed in specification
@@ -179,7 +179,7 @@ int respond(struct client client, struct client* clientList,
 	memset(response, 0, 2048);
 	
 	if (placesCorrect == strlen(secretWord)){ //CORRECT
-		sprintf(response, "%s has correctly guessed the word %s.", client.username, secretWord);
+		sprintf(response, "%s has correctly guessed the word %s", client.username, secretWord);
 		broadcast(clientList, response);
 		return 1;
 	} else {
@@ -281,8 +281,8 @@ void addClient(int newFd, struct client* clients, int firstOpen, int numClients,
 			// if client has a username and it is the same as the current response
 			if(clients[n].username && caselessCmp(clients[n].username, buf) == 0){
 				// send invalid username response
-				char* inval = calloc(strlen("Username  is already taken, please enter a different username") + MAX_NAME, sizeof(char));
-				sprintf(inval, "Username %s is already taken, please enter a different username", buf);
+				char* inval = calloc(strlen("Username  is already taken, please enter a different username.") + MAX_NAME, sizeof(char));
+				sprintf(inval, "Username %s is already taken, please enter a different username.", buf);
 				write(newFd, inval, strlen(inval));
 				// free allocated memory and wait for next response
 				free(inval);
@@ -302,7 +302,7 @@ void addClient(int newFd, struct client* clients, int firstOpen, int numClients,
 			// send confirm username is correct and send message with number of players and size of word
 
 			// strlen argument is the longer of the two messages that will be stored in this buffer
-			char* invite = calloc(strlen("There are  player(s) playing. The secret word is  letters.") + MAX_NAME, sizeof(char));
+			char* invite = calloc(strlen("There are  player(s) playing. The secret word is letter(s).") + MAX_NAME, sizeof(char));
 			sprintf(invite, "Let's start playing, %s", buf);
 			write(newFd, invite, strlen(invite));
 			sprintf(invite, "There are %d player(s) playing. The secret word is %d letters.", numClients+1, numLetters);
