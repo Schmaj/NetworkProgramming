@@ -53,6 +53,8 @@ Tell user how many players upon successful username
 #define WELCOME_MESSAGE "Welcome to Guess the Word, please enter your username."
 // length of largest allowed username
 #define MAX_NAME 30
+// no word will exceed this many bytes, as expressed in specification
+#define MAX_WORD 1024
 
 #define GUESS_DICT_LEN 499329
 
@@ -136,12 +138,12 @@ void compareWord(unsigned int * lettersCorrect, unsigned int * placesCorrect, ch
 int respond(struct client client, struct client* clientList, 
 		unsigned int max_word_length, char* secretWord){
 
-	char message[max_word_length+1];
-	memset(message, 0, max_word_length+1);
+	char message[MAX_WORD+1];
+	memset(message, 0, MAX_WORD+1);
 
-	int messageLength = read(client.fd, message, max_word_length+1);
+	int messageLength = read(client.fd, message, MAX_WORD+1);
 	if (messageLength < 0){//ERROR
-		perror("respond, messageLength");
+		perror("respond, messageLength\n");
 	} 
 	// tcp connection closed, remove client
 	else if(messageLength == 0){
