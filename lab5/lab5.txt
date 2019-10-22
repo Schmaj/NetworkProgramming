@@ -10,3 +10,11 @@ Schmalz, Jonathon (schmaj@rpi.edu)
 2. Responses: 220, 331, 230, 215, 211, 257, 200, 227, 125, 226, 220, 331, 230,
 			  250, 257, 200, 227, 125, 226, 227, 125, 226, 250, 257, 227, 125,
 			  226, 250, 257, 200, 227, 125, 226
+
+3. Username: Administrator
+   Password: napier
+
+4. Uploaded: 111.png
+   Downloaded: manual.txt
+
+5. 
