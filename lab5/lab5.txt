@@ -25,4 +25,4 @@ Schmalz, Jonathon (schmaj@rpi.edu)
 8. Files: 1.docx
 		  manual.txt
 
-9.  
+9. The filter identifies the ports set to passive mode that will be connected to by the client. 
