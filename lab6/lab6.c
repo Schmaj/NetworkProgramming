@@ -39,7 +39,6 @@ int main(int argc, char * argv[]) {
 
 	struct addrinfo * iterator = servinfo;
 	while (iterator != NULL){
-		printf("Not NULL!\n");
 
 		int family = iterator->ai_family;
 		char dest[128];
@@ -64,7 +63,6 @@ int main(int argc, char * argv[]) {
 
 		iterator = iterator->ai_next;
 	}
-	printf("Not NULL!\n");
 
 	freeaddrinfo(servinfo);
 	return 0;
