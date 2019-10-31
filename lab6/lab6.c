@@ -14,6 +14,8 @@
 #include <ctype.h>
 #include <netdb.h>
 
+#include <arpa/inet.h>
+
 int main(int argc, char * argv[]) {
 
 	if (argc != 2){
@@ -36,8 +38,30 @@ int main(int argc, char * argv[]) {
 	}
 
 	struct addrinfo * iterator = servinfo;
-	while (iterator->ai_next != NULL){
+	while (iterator != NULL){
 		printf("Not NULL!\n");
+
+		int family = iterator->ai_family;
+		char dest[128];
+		struct in_addr v4addr;
+		struct in6_addr v6addr;
+		void* addrPtr = NULL; 
+		if(family == AF_INET){
+			struct sockaddr_in* info = (struct sockaddr_in*)iterator->ai_addr;
+			v4addr = info->sin_addr;
+			addrPtr = &v4addr;
+		} 
+		else if(family == AF_INET6){
+			struct sockaddr_in6* info = (struct sockaddr_in6*)iterator->ai_addr;
+			v6addr = info->sin6_addr;
+			addrPtr = &v6addr;
+		}
+		else{
+			printf("Unrecognized family\n");
+		}
+
+		printf("%s\n", inet_ntop(family, addrPtr, dest, 128));
+
 		iterator = iterator->ai_next;
 	}
 	printf("Not NULL!\n");
