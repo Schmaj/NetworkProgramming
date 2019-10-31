@@ -30,9 +30,17 @@ int main(int argc, char * argv[]) {
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_flags = AI_PASSIVE;
 
-	if ((status = getaddrinfo(NULL, "3490", &hints, &servinfo)) != 0) {
-		fprintf(stderr, "getaddrinfo error: %s\n", gai_strerror(status));
+	if ((status = getaddrinfo(argv[1], NULL, &hints, &servinfo)) != 0) {
+		fprintf(stderr, "getaddrinfo error code: %s\n", gai_strerror(status));
+		return 1;
 	}
+
+	struct addrinfo * iterator = servinfo;
+	while (iterator->ai_next != NULL){
+		printf("Not NULL!\n");
+		iterator = iterator->ai_next;
+	}
+	printf("Not NULL!\n");
 
 	freeaddrinfo(servinfo);
 	return 0;
