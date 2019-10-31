@@ -14,7 +14,13 @@
 #include <ctype.h>
 #include <netdb.h>
 
-int main() {
+int main(int argc, char * argv[]) {
+
+	if (argc != 2){
+		printf("Usage: ./a.out <hostname>\n");
+		return 1;
+	}
+
 	int status;
 	struct addrinfo hints;
 	struct addrinfo *servinfo;
@@ -29,4 +35,5 @@ int main() {
 	}
 
 	freeaddrinfo(servinfo);
+	return 0;
 }
