@@ -46,10 +46,10 @@ struct baseStation{
 	int xPos;
 	int yPos;
 	char* id;
-	struct siteLst* closestHead;
+	struct siteLst* connectedLst;
 }
 
-// new siteLst created for each baseStation - order of closest sites, first by proximity
+// new siteLst created for each baseStation - list of sites (clients will be added when they enter range)
 struct siteLst{
 	char* id;
 	struct siteLst* next;
