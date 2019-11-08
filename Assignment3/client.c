@@ -30,6 +30,24 @@ struct siteLst{
 	int yPos;
 };
 
+struct hoplist{
+	char* id;
+	struct hoplist* next;
+}
+
+struct message{
+	char* originID;
+	char* nextID;
+	char* destinationID;
+	int hopLeng;
+	struct hoplist* hoplst;
+}
+
+struct message * parseMsg(char * msg){ 
+	char * keyword = strtok(msg, " ");
+		
+}
+
 // deallocates all elements in this list
 void freeLst(struct siteLst* lst){
 	// if called on NULL, don't do anything
@@ -133,6 +151,8 @@ int connectToServer(int sockfd, char* controlAddress, int controlPort){
 	return status;
 
 }
+
+
 
 int main(int argc, char * argv[]) {
 
@@ -245,20 +265,6 @@ recvMsg()
 interactWithConsole() // interpreting commands
 
 
-struct message{
-	char* originID;
-	char* nextID;
-	char* destinationID;
-	int hopLeng;
-	struct hoplist* hoplst;
-}
-
-struct hoplist{
-	char* id;
-	struct hoplist* next;
-}
-
-parseMsg()
 
 msgToStr()
 
