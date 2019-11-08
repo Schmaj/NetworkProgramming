@@ -75,7 +75,7 @@ struct message * parseMsg(char * msg, int msgSize){
 		return retMsg;
 	} else {
 		printf("THERE\n");
-
+		
 		free(cpy);
 	}
 

@@ -43,9 +43,55 @@ struct message{
 	struct hoplist* hoplst;
 }
 
-struct message * parseMsg(char * msg){ 
-	char * keyword = strtok(msg, " ");
+/*
+Arg msg: message sent in, to be parsed and information put into struct message
+	Must abide by format from specs, with a space(not NULL byte) at the end
+Arg msgSize: Total size/length of message
+Returns: struct message with info from msg
+*/
+struct message * parseMsg(char * msg, int msgSize){		
+	char * cpy = calloc(strlen(msg)+1, sizeof(char));
+	strcpy(cpy, msg);
+
+	struct message* retMsg = calloc(1, sizeof(struct message));
+	retMsg->messageType = calloc(MAX_SIZE, sizeof(char));
+	strcpy(retMsg->messageType, strtok(cpy, " "));
+
+	if (strcmp(retMsg->messageType, "DATAMESSAGE") == 0){
+
+		retMsg->originID = calloc(MAX_SIZE, sizeof(char));
+		strcpy(retMsg->originID, strtok(NULL, " "));
+
+		retMsg->nextID = calloc(MAX_SIZE, sizeof(char));
+		strcpy(retMsg->nextID, strtok(NULL, " "));
+
+		retMsg->destinationID = calloc(MAX_SIZE, sizeof(char));
+		strcpy(retMsg->destinationID, strtok(NULL, " "));
+
+		retMsg->hopLeng = atoi(strtok(NULL, " "));
+
+		retMsg->hoplst = calloc(1, sizeof(struct message));
+		struct hoplist* iterator = retMsg->hoplst;
+
+		for (unsigned int i = 0; i < retMsg->hopLeng; ++i){
+			iterator->id = strtok(NULL, " ");
+			if (i == retMsg->hopLeng-1){
+				iterator->next = NULL;
+			} else {
+				iterator->next = calloc(1, sizeof(struct hoplist));
+				iterator = iterator->next;
+			}
+		}
+
+		free(cpy);
+		return retMsg;
+	} else {
+		printf("THERE\n");
 		
+		free(cpy);
+	}
+
+	return retMsg;
 }
 
 // deallocates all elements in this list
