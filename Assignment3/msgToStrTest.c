@@ -79,7 +79,10 @@ struct message * parseMsg(char * msg, int msgSize){
 }
 
 char * msgToStr(struct message* msg){
-	//int msg_size = strlen()
+	int msg_size = strlen(msg->messageType) + strlen(msg->originID) + strlen(msg->nextID);
+	msg_size += strlen(msg->destinationID) + 8;
+	struct message* iterator = msg->hoplst;
+	
 	char * str = calloc(, sizeof(char));
 	return str;
 }
