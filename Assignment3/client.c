@@ -13,7 +13,7 @@
 #include <errno.h>
 #include <ctype.h>
 #include <netdb.h>
-
+#include <math.h>
 #include <arpa/inet.h>
 
 // max characters in an address
@@ -22,6 +22,8 @@
 #define ID_LEN 64
 // number of seconds to wait for select() call
 #define TIMEOUT 15
+
+char* THIS_ID = "THIS_ID";
 
 struct siteLst{
 	char* id;

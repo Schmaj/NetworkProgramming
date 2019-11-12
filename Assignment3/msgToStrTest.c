@@ -81,7 +81,13 @@ struct message * parseMsg(char * msg, int msgSize){
 	return retMsg;
 }
 
-char * msgToStr(struct message* msg){
+
+/*
+Fnc: converts message struct into a string to be sent to the next "node"
+Arg: struct message to be converted into a string to be sent elsewhere
+Ret: string to be send, dynamically stored
+*/
+char* msgToStr(struct message* msg){
 	int msg_size = strlen(msg->messageType) + strlen(msg->originID) + strlen(msg->nextID);
 	msg_size += strlen(msg->destinationID) + (int)ceil(log10(msg->hopLeng))+6;
 	struct hoplist* iterator = msg->hoplst;
