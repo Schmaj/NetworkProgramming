@@ -14,7 +14,6 @@
 #include <ctype.h>
 #include <netdb.h>
 #include <math.h>
-#include <arpa/inet.h>
 
 // max characters in an address
 #define ADDRESS_LEN 64
@@ -22,8 +21,6 @@
 #define ID_LEN 64
 // number of seconds to wait for select() call
 #define TIMEOUT 15
-
-char* THIS_ID = "THIS_ID";
 
 struct siteLst{
 	char* id;
@@ -96,9 +93,10 @@ struct message * parseMsg(char * msg, int msgSize){
 /*
 Fnc: converts message struct into a string to be sent to the next "node"
 Arg: struct message to be converted into a string to be sent elsewhere
+Arg: thisID is the null-terminated string for the name of the sender (self)
 Ret: string to be send, dynamically stored
 */
-char* msgToStr(struct message* msg){
+char* msgToStr(struct message* msg, char* thisID){
 	int msg_size = strlen(msg->messageType) + strlen(msg->originID) + strlen(msg->nextID);
 	msg_size += strlen(msg->destinationID) + (int)ceil(log10(msg->hopLeng))+6;
 	struct hoplist* iterator = msg->hoplst;
@@ -106,7 +104,7 @@ char* msgToStr(struct message* msg){
 		msg_size += strlen(iterator->id) + 1;
 		iterator = iterator->next;
 	}
-	msg_size += strlen(THIS_ID) + 1;
+	msg_size += strlen(thisID) + 1;
 
 	char * str = calloc(msg_size+1, sizeof(char));
 	strcat(str, msg->messageType);
@@ -127,7 +125,7 @@ char* msgToStr(struct message* msg){
 		iterator = iterator->next;
 	}
 	iterator = NULL;
-	strcat(str, THIS_ID);
+	strcat(str, thisID);
 	strcat(str, " ");
 	return str;
 }
