@@ -13,7 +13,7 @@
 #include <errno.h>
 #include <ctype.h>
 #include <netdb.h>
-
+#include <math.h>
 #include <arpa/inet.h>
 
 int main(int argc, char * argv[]) {

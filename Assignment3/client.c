@@ -13,7 +13,7 @@
 #include <errno.h>
 #include <ctype.h>
 #include <netdb.h>
-
+#include <math.h>
 #include <arpa/inet.h>
 
 // max characters in an address
@@ -36,6 +36,8 @@
 #define QUIT_CMD "QUIT"
 #define WHERE_CMD "WHERE"
 
+
+char* THIS_ID = "THIS_ID";
 
 struct siteLst{
 	char* id;
@@ -83,18 +85,18 @@ struct message * parseMsg(char * msg, int msgSize){
 	strcpy(cpy, msg);
 
 	struct message* retMsg = calloc(1, sizeof(struct message));
-	retMsg->messageType = calloc(MAX_SIZE, sizeof(char));
+	retMsg->messageType = calloc(ID_LEN, sizeof(char));
 	strcpy(retMsg->messageType, strtok(cpy, " "));
 
 	if (strcmp(retMsg->messageType, "DATAMESSAGE") == 0){
 
-		retMsg->originID = calloc(MAX_SIZE, sizeof(char));
+		retMsg->originID = calloc(ID_LEN, sizeof(char));
 		strcpy(retMsg->originID, strtok(NULL, " "));
 
-		retMsg->nextID = calloc(MAX_SIZE, sizeof(char));
+		retMsg->nextID = calloc(ID_LEN, sizeof(char));
 		strcpy(retMsg->nextID, strtok(NULL, " "));
 
-		retMsg->destinationID = calloc(MAX_SIZE, sizeof(char));
+		retMsg->destinationID = calloc(ID_LEN, sizeof(char));
 		strcpy(retMsg->destinationID, strtok(NULL, " "));
 
 		retMsg->hopLeng = atoi(strtok(NULL, " "));
@@ -117,6 +119,45 @@ struct message * parseMsg(char * msg, int msgSize){
 		free(cpy);
 	}
 	return retMsg;
+}
+
+/*
+Fnc: converts message struct into a string to be sent to the next "node"
+Arg: struct message to be converted into a string to be sent elsewhere
+Ret: string to be send, dynamically stored
+*/
+char* msgToStr(struct message* msg){
+	int msg_size = strlen(msg->messageType) + strlen(msg->originID) + strlen(msg->nextID);
+	msg_size += strlen(msg->destinationID) + (int)ceil(log10(msg->hopLeng))+6;
+	struct hoplist* iterator = msg->hoplst;
+	while (iterator != NULL){
+		msg_size += strlen(iterator->id) + 1;
+		iterator = iterator->next;
+	}
+	msg_size += strlen(THIS_ID) + 1;
+
+	char * str = calloc(msg_size+1, sizeof(char));
+	strcat(str, msg->messageType);
+	strcat(str, " ");
+	strcat(str, msg->originID);
+	strcat(str, " ");
+	strcat(str, msg->nextID);
+	strcat(str, " ");
+	strcat(str, msg->destinationID);
+	strcat(str, " ");
+	char tmp[(int)ceil(log10(msg->hopLeng))+2];
+	sprintf(tmp, "%d ", msg->hopLeng);
+	strcat(str, tmp);
+	iterator = msg->hoplst;
+	while(iterator != NULL){
+		strcat(str, iterator->id);
+		strcat(str, " ");
+		iterator = iterator->next;
+	}
+	iterator = NULL;
+	strcat(str, THIS_ID);
+	strcat(str, " ");
+	return str;
 }
 
 // deallocates all elements in this list
@@ -429,11 +470,4 @@ sendMsg()
 recvMsg()
 
 interactWithConsole() // interpreting commands
-
-
-
-msgToStr()
-
-
-
 */

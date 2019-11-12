@@ -14,8 +14,11 @@
 #include <ctype.h>
 #include <netdb.h>
 #include <arpa/inet.h>
+#include <math.h>
 
 #define MAX_SIZE 30
+
+char* THIS_ID = "THIS_ID";
 
 struct hoplist{
 	char* id;
@@ -70,7 +73,7 @@ struct message * parseMsg(char * msg, int msgSize){
 				iterator = iterator->next;
 			}
 		}
-
+		iterator = NULL;
 		free(cpy);
 	} else {
 		free(cpy);
@@ -78,9 +81,43 @@ struct message * parseMsg(char * msg, int msgSize){
 	return retMsg;
 }
 
-char * msgToStr(struct message* msg){
-	//int msg_size = strlen()
-	char * str = calloc(, sizeof(char));
+
+/*
+Fnc: converts message struct into a string to be sent to the next "node"
+Arg: struct message to be converted into a string to be sent elsewhere
+Ret: string to be send, dynamically stored
+*/
+char* msgToStr(struct message* msg){
+	int msg_size = strlen(msg->messageType) + strlen(msg->originID) + strlen(msg->nextID);
+	msg_size += strlen(msg->destinationID) + (int)ceil(log10(msg->hopLeng))+6;
+	struct hoplist* iterator = msg->hoplst;
+	while (iterator != NULL){
+		msg_size += strlen(iterator->id) + 1;
+		iterator = iterator->next;
+	}
+	msg_size += strlen(THIS_ID) + 1;
+
+	char * str = calloc(msg_size+1, sizeof(char));
+	strcat(str, msg->messageType);
+	strcat(str, " ");
+	strcat(str, msg->originID);
+	strcat(str, " ");
+	strcat(str, msg->nextID);
+	strcat(str, " ");
+	strcat(str, msg->destinationID);
+	strcat(str, " ");
+	char tmp[(int)ceil(log10(msg->hopLeng))+2];
+	sprintf(tmp, "%d ", msg->hopLeng);
+	strcat(str, tmp);
+	iterator = msg->hoplst;
+	while(iterator != NULL){
+		strcat(str, iterator->id);
+		strcat(str, " ");
+		iterator = iterator->next;
+	}
+	iterator = NULL;
+	strcat(str, THIS_ID);
+	strcat(str, " ");
 	return str;
 }
 
@@ -99,6 +136,10 @@ int main(int argc, char * argv[]) {
 		printf("%s\n", iterator->id);
 		iterator = iterator->next;
 	}
+
+	char* test_msg = msgToStr(test);
+	printf("%s\n", test_msg);
+	free(test_msg);
 	free(test);
 	return 0;
 }
