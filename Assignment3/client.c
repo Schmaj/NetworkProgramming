@@ -167,6 +167,7 @@ void freeLst(struct siteLst* lst){
 	if(lst->next){
 		freeLst(lst->next);
 	}
+	free(lst->id);
 	free(lst);
 	return;
 }
@@ -197,9 +198,28 @@ struct siteLst* updatePosition(struct siteLst* lst, char* sensorID, int SensorRa
 		perror("updatePosition, read");
 		exit(EXIT_FAILURE);
 	}
-	// TODO:
-	// initialize new list
+
+	char* messageType = strtok(msg, " ");
+	if (strcmp(messageType, "REACHABLE") != 0){
+		perror("updatePosition, messageType");
+		exit(EXIT_FAILURE);
+	}
+	int numReachable = atoi(strtok(NULL, " "));
 	lst = calloc(1, sizeof(struct siteLst));
+	struct siteLst* iterator = lst;
+
+	for (unsigned int i = 0; i < numReachable; ++i){
+		iterator->id = calloc(ID_LEN+1, sizeof(char));
+		strcpy(iterator->id, strtok(NULL, " "));
+		iterator->xPos = atoi(strtok(NULL, " "));
+		iterator->yPos = atoi(strtok(NULL, " "));
+		if (i == numReachable-1){
+			iterator->next = NULL;
+		} else {
+			iterator->next = calloc(1, sizeof(struct siteLst));
+			iterator = iterator->next;
+		}
+	}
 	return lst;
 }
 
