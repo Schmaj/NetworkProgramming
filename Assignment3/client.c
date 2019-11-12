@@ -176,7 +176,7 @@ void freeLst(struct siteLst* lst){
 // returns pointer to new dynamically allocated linked list of siteLst
 //
 // lst: siteLst of all reachable sites.  If not null, deallocated
-struct siteLst* updatePosition(struct siteLst* lst, int x, int y){
+struct siteLst* updatePosition(struct siteLst* lst, char* sensorID, int SensorRange, int xPos, int yPos){
 
 	// deallocate old list, if it exists
 	if(lst){
@@ -272,7 +272,7 @@ QUIT
 WHERE [SensorID/BaseID]
 
 */
-int interactWithConsole(struct siteLst* reachableSites){
+int interactWithConsole(struct siteLst* reachableSites, char* sensorID, int SensorRange){
 	// buffer to hold command
 	char buf[CMD_SIZE];
 
@@ -297,7 +297,7 @@ int interactWithConsole(struct siteLst* reachableSites){
 		int yPos = atoi(pos);
 
 		// update position and send message to server
-		updatePosition(reachableSites, xPos, yPos);
+		updatePosition(reachableSites, sensorID, SensorRange,xPos, yPos);
 
 		return 0;
 
@@ -402,7 +402,7 @@ int main(int argc, char * argv[]) {
 	struct siteLst* reachableSites = NULL;
 
 	// sends initial updatePosition message and initializes list of reachable sites
-	updatePosition(reachableSites, xPos, yPos);
+	updatePosition(reachableSites, sensorID, SensorRange, xPos, yPos);
 
 	// ready to loop?
 
@@ -445,7 +445,7 @@ int main(int argc, char * argv[]) {
 
 		if(FD_ISSET(standardInput, &rfds)){
 			// TODO:
-			interactWithConsole(reachableSites);
+			interactWithConsole(reachableSites, sensorID, SensorRange);
 		}
 
 		if(FD_ISSET(sockfd, &rfds)){
