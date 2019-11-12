@@ -25,9 +25,8 @@
 #define CMD_SIZE 256
 // max number of characters in xPos or yPos for MOVE command
 #define INT_LEN 16
-
-
-#define MAX_SIZE 64
+//max number of bytes to be read in
+#define MAX_REACHABLE 32
 
 // string literals for each command
 #define MOVE_CMD "MOVE"
@@ -176,19 +175,32 @@ void freeLst(struct siteLst* lst){
 // returns pointer to new dynamically allocated linked list of siteLst
 //
 // lst: siteLst of all reachable sites.  If not null, deallocated
-struct siteLst* updatePosition(struct siteLst* lst, char* sensorID, int SensorRange, int xPos, int yPos){
+struct siteLst* updatePosition(struct siteLst* lst, char* sensorID, int SensorRange, int xPos, int yPos, int fd){
 
 	// deallocate old list, if it exists
 	if(lst){
 		freeLst(lst);
 	}
 
-	// TODO:
-	// make message
-	// send message
-	// receive response
-	// initialize new list
+	char* msg = calloc(strlen("UPDATEPOSITION ")+1 + ID_LEN + INT_LEN*3 + 4, sizeof(char));
+	sprintf(msg, "UPDATEPOSITION %s %d %d %d ", sensorID, SensorRange, xPos, yPos);
 
+	int retno = write(fd, msg, strlen(msg)+1);
+	if (retno <= 0){
+		perror("updatePosition, write");
+		exit(EXIT_FAILURE);
+	}
+	free(msg);
+	msg = calloc(MAX_REACHABLE*ID_LEN + 20, sizeof(char));
+	retno = read(fd, msg, MAX_REACHABLE*ID_LEN + 21);
+	if (retno <= 0){
+		perror("updatePosition, read");
+		exit(EXIT_FAILURE);
+	}
+	// TODO:
+	// initialize new list
+	lst = calloc(1, sizeof(struct siteLst));
+	return lst;
 }
 
 // retrieve server address from name, and if able, connect to server
@@ -272,7 +284,7 @@ QUIT
 WHERE [SensorID/BaseID]
 
 */
-int interactWithConsole(struct siteLst* reachableSites, char* sensorID, int SensorRange){
+int interactWithConsole(struct siteLst* reachableSites, char* sensorID, int SensorRange, int sockfd){
 	// buffer to hold command
 	char buf[CMD_SIZE];
 
@@ -297,7 +309,7 @@ int interactWithConsole(struct siteLst* reachableSites, char* sensorID, int Sens
 		int yPos = atoi(pos);
 
 		// update position and send message to server
-		updatePosition(reachableSites, sensorID, SensorRange,xPos, yPos);
+		updatePosition(reachableSites, sensorID, SensorRange,xPos, yPos, sockfd);
 
 		return 0;
 
@@ -402,7 +414,7 @@ int main(int argc, char * argv[]) {
 	struct siteLst* reachableSites = NULL;
 
 	// sends initial updatePosition message and initializes list of reachable sites
-	updatePosition(reachableSites, sensorID, SensorRange, xPos, yPos);
+	updatePosition(reachableSites, sensorID, SensorRange, xPos, yPos, sockfd);
 
 	// ready to loop?
 
@@ -445,7 +457,7 @@ int main(int argc, char * argv[]) {
 
 		if(FD_ISSET(standardInput, &rfds)){
 			// TODO:
-			interactWithConsole(reachableSites, sensorID, SensorRange);
+			interactWithConsole(reachableSites, sensorID, SensorRange, sockfd);
 		}
 
 		if(FD_ISSET(sockfd, &rfds)){
