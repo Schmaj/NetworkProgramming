@@ -27,7 +27,7 @@
 #define INT_LEN 16
 
 
-#define MAX_SIZE 30
+#define MAX_SIZE 64
 
 // string literals for each command
 #define MOVE_CMD "MOVE"

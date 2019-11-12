@@ -102,8 +102,6 @@ recvMsgFromClient()
 
 serverToClient()
 
-parseInput()
-
 interactWithConsole() // getting command from user
 
 
