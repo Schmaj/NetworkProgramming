@@ -4,4 +4,4 @@ client.out: client.c
 	gcc client.c -Wall -o client.out -lm
 
 server.out: server.c
-	gcc server.c -Wall -o server.out
+	gcc server.c -Wall -o server.out -lm
