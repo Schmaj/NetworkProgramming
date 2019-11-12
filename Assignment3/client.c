@@ -22,6 +22,20 @@
 #define ID_LEN 64
 // number of seconds to wait for select() call
 #define TIMEOUT 15
+// size of buffer for command line commands
+#define CMD_SIZE 256
+// max number of characters in xPos or yPos for MOVE command
+#define INT_LEN 16
+
+
+#define MAX_SIZE 30
+
+// string literals for each command
+#define MOVE_CMD "MOVE"
+#define SEND_CMD "SENDDATA"
+#define QUIT_CMD "QUIT"
+#define WHERE_CMD "WHERE"
+
 
 struct siteLst{
 	char* id;
@@ -33,14 +47,29 @@ struct siteLst{
 struct hoplist{
 	char* id;
 	struct hoplist* next;
-}
+};
 
 struct message{
+	char* messageType;
 	char* originID;
 	char* nextID;
 	char* destinationID;
 	int hopLeng;
 	struct hoplist* hoplst;
+};
+
+// takes in message m, fills in nextID from reachableSites and destinationID, and sends appropriate message to server
+void sendMsg(struct message* m, struct siteLst* reachableSites){
+
+	// closest to dest, ties alphabetically
+	struct siteLst* closest;
+
+	// pointer to walk through list of reachable sites
+	struct siteLst* itr = reachableSites;
+	while(itr != NULL){
+
+	}
+
 }
 
 /*
@@ -194,7 +223,102 @@ int connectToServer(int sockfd, char* controlAddress, int controlPort){
 
 }
 
+// takes in command from stdin and executes user command
 
+/* Commands include:
+
+MOVE [NewXPosition] [NewYPosition]
+SENDDATA [DestinationID]
+QUIT
+WHERE [SensorID/BaseID]
+
+*/
+int interactWithConsole(struct siteLst* reachableSites){
+	// buffer to hold command
+	char buf[CMD_SIZE];
+
+	// read next line from command line into buf
+	fgets(buf, CMD_SIZE, stdin);
+
+	char command[CMD_SIZE];
+
+	strcpy(command, strtok(buf, " "));	
+
+	// MOVE [NewXPosition] [NewYPosition]
+	if(strcmp(command, MOVE_CMD) == 0){
+		// buffer to hold new coordinates
+		char pos[INT_LEN];
+		// 0 out buffer and copy xposition
+		memset(pos, '\0', INT_LEN);
+		strcpy(pos, strtok(buf, " "));
+		int xPos = atoi(pos);
+		// 0 out buffer and copy yposition
+		memset(pos, '\0', INT_LEN);
+		strcpy(pos, strtok(buf, " \0"));
+		int yPos = atoi(pos);
+
+		// update position and send message to server
+		updatePosition(reachableSites, xPos, yPos);
+
+		return 0;
+
+	}
+	// SENDDATA [DestinationID]
+	else if(strcmp(command, SEND_CMD) == 0){
+		
+	}
+	// QUIT
+	else if(strcmp(command, QUIT_CMD) == 0){
+		
+	}
+	// WHERE [SensorID/BaseID]
+	else if(strcmp(command, WHERE_CMD) == 0){
+		
+	}
+/*
+	char * cpy = calloc(strlen(msg)+1, sizeof(char));
+	strcpy(cpy, msg);
+
+	struct message* retMsg = calloc(1, sizeof(struct message));
+	retMsg->messageType = calloc(MAX_SIZE, sizeof(char));
+	strcpy(retMsg->messageType, strtok(cpy, " "));
+
+	if (strcmp(retMsg->messageType, "DATAMESSAGE") == 0){
+
+		retMsg->originID = calloc(MAX_SIZE, sizeof(char));
+		strcpy(retMsg->originID, strtok(NULL, " "));
+
+		retMsg->nextID = calloc(MAX_SIZE, sizeof(char));
+		strcpy(retMsg->nextID, strtok(NULL, " "));
+
+		retMsg->destinationID = calloc(MAX_SIZE, sizeof(char));
+		strcpy(retMsg->destinationID, strtok(NULL, " "));
+
+		retMsg->hopLeng = atoi(strtok(NULL, " "));
+
+		retMsg->hoplst = calloc(1, sizeof(struct message));
+		struct hoplist* iterator = retMsg->hoplst;
+
+		for (unsigned int i = 0; i < retMsg->hopLeng; ++i){
+			iterator->id = strtok(NULL, " ");
+			if (i == retMsg->hopLeng-1){
+				iterator->next = NULL;
+			} else {
+				iterator->next = calloc(1, sizeof(struct hoplist));
+				iterator = iterator->next;
+			}
+		}
+
+		free(cpy);
+	} else {
+		free(cpy);
+	}
+	return retMsg;
+	*/
+
+
+
+}
 
 int main(int argc, char * argv[]) {
 
@@ -282,7 +406,7 @@ int main(int argc, char * argv[]) {
 
 		if(FD_ISSET(standardInput, &rfds)){
 			// TODO:
-			// interactWithConsole();
+			interactWithConsole(reachableSites);
 		}
 
 		if(FD_ISSET(sockfd, &rfds)){
