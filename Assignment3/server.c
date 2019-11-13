@@ -47,6 +47,9 @@
 #define DATA_MSG "DATAMESSAGE"
 #define WHERE_MSG "WHERE"
 #define UPDATE_MSG "UPDATEPOSITION"
+#define SEND_CMD "SENDDATA"
+#define QUIT_CMD "QUIT"
+#define CONTROL "CONTROL"
 
 #define SERVER_ID "CONTROL"
 
@@ -265,41 +268,39 @@ void updateSiteLst(char* sensorID, int xPosition, int yPosition){ // call that f
 	return;
 }
 
-int interactWithConsole(){
+// frees all dynamic memory in a message m, including m itself
+void freeMsg(struct message* m){
+	if(m->messageType){
+		free(m->messageType);
+		m->messageType = NULL;
+	}
+	if(m->originID){
+		free(m->originID);
+		m->originID = NULL;
+	}
+	if(m->nextID){
+		free(m->nextID);
+		m->nextID = NULL;
+	}
+	if(m->destinationID){
+		free(m->destinationID);
+		m->destinationID = NULL;
+	}
+	struct hoplist* l = m->hoplst;
+	while(l != NULL){
 
+		if(l->id){
+			free(l->id);
+			l->id = NULL;
+		}
 
-	return 0;
-}
-
-/*
-
-// receive a message from socket
-int recvMsg(int sockfd, char* myID, struct siteLst* reachableSites, struct siteLst* knownLocations){
-
-	// estimated max size of message
-	// length of name (plus 1 character for space) multiplied by the max number of names (full hop list + originalSiteId
-	// + destinationSiteID) + message type length (MAX_SIZE) + integer (hoplength)
-	int msgSize = (ID_LEN + 1) * (MAX_HOP + 2) + MAX_SIZE + INT_LEN;
-
-	// buffer to hold message from server
-	char* buf = calloc(msgSize, sizeof(char));
-
-	int bytes = read(sockfd, buf, msgSize);
-
-	struct message* m = parseMsg(buf, bytes);
-
-	// if this site is the destination
-	if(strcmp(m->destinationID, myID) == 0){
-		// print that message was properly received
-		printf("%s: Message from %s to %s successfully received\n", myID, m->originID, myID);
-		return 0;
+		struct hoplist* tmp = l;
+		l = l->next;
+		free(tmp);
 	}
 
-	sendDataMsg(myID, sockfd, m, reachableSites, knownLocations);
-
-	return 0;
+	free(m);
 }
-*/
 
 // only called if next recipient is known and not a base station
 // actually sends data over socket, frees message struct m
@@ -536,6 +537,94 @@ void* handleMessage(void* args){
 
 	return NULL;
 }
+
+int interactWithConsole(/*don't know what we need yet*/){
+	// buffer to hold command
+	char buf[CMD_SIZE];
+
+	// read next line from command line into buf
+	fgets(buf, CMD_SIZE, stdin);
+
+	char command[CMD_SIZE];
+
+	strcpy(command, strtok(buf, " "));
+	// SENDDATA [DestinationID]
+	if(strcmp(command, SEND_CMD) == 0){
+
+		struct message* m = calloc(1, sizeof(struct message));
+
+		// initialize messageType
+		m->messageType = calloc(ID_LEN, sizeof(char));
+		strcpy(m->messageType, DATA_MSG);
+
+		m->originID = calloc(ID_LEN, sizeof(char));
+		strcpy(m->originID, strtok(NULL, " "));
+
+		// nextID initially null, will be determined 
+		m->nextID = NULL;
+
+		// destination ID intialized to destination given by user
+		m->destinationID = calloc(ID_LEN, sizeof(char));
+		strcpy(m->destinationID, strtok(NULL, "\n"));
+
+		// hopleng and hoplist initially empty, will be updated to include self in sendDataMsg()
+		m->hopLeng = 0;
+		m->hoplst = NULL;
+
+		if (strcmp(m->originID, CONTROL) == 0){
+			handleMessage(NULL);
+		} else { //base station
+			giveToBaseStation(m->originID, m);
+		}
+
+		// TODO free message
+		freeMsg(m);
+
+		return 0;
+
+
+	}
+	// QUIT
+	else if(strcmp(command, QUIT_CMD) == 0){
+		// return value of 1 signals quit, all real cleanup will happen in main
+		return 1;
+		
+	}
+
+	return 0;
+}
+
+/*
+
+// receive a message from socket
+int recvMsg(int sockfd, char* myID, struct siteLst* reachableSites, struct siteLst* knownLocations){
+
+	// estimated max size of message
+	// length of name (plus 1 character for space) multiplied by the max number of names (full hop list + originalSiteId
+	// + destinationSiteID) + message type length (MAX_SIZE) + integer (hoplength)
+	int msgSize = (ID_LEN + 1) * (MAX_HOP + 2) + MAX_SIZE + INT_LEN;
+
+	// buffer to hold message from server
+	char* buf = calloc(msgSize, sizeof(char));
+
+	int bytes = read(sockfd, buf, msgSize);
+
+	struct message* m = parseMsg(buf, bytes);
+
+	// if this site is the destination
+	if(strcmp(m->destinationID, myID) == 0){
+		// print that message was properly received
+		printf("%s: Message from %s to %s successfully received\n", myID, m->originID, myID);
+		return 0;
+	}
+
+	sendDataMsg(myID, sockfd, m, reachableSites, knownLocations);
+
+	return 0;
+}
+*/
+
+
 
 int main(int argc, char * argv[]) {
 	
