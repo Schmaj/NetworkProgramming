@@ -21,6 +21,9 @@ struct hoplist;
 char* msgToStr(struct message* msg, char* thisID);
 struct baseStation;
 struct siteLst;
+void updateSiteLst(struct message* msg);
+
+struct siteLst* globalSiteList;
 
 int main(int argc, char * argv[]) {
 	return 0;
@@ -93,9 +96,21 @@ struct siteLst{
 	int xPos;
 	int yPos;
 };
-/*
-updateSiteLst() // call that for everybody
 
+/*
+Ret: void
+Arg: msg is the message received. if msg->messageType == "Update Position", 
+		update globalSiteList
+*/
+void updateSiteLst(char* sensorID, int SensorRange, int xPos, int yPos){ // call that for everybody
+	struct siteLst* iterator = globalSiteList;
+	while(iterator != NULL){
+		iterator = iterator->next;
+	}
+	iterator->next = calloc(1, sizeof(struct ))
+	return;
+}
+/*
 baseStationToBaseStation()
 
 recvMsgFromClient()
