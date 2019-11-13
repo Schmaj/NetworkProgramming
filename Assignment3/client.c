@@ -722,7 +722,7 @@ int main(int argc, char * argv[]) {
 
 		if(FD_ISSET(sockfd, &rfds)){
 			// TODO:
-			recvMsg(sockfd);
+			recvMsg(sockfd, sensorID, reachableSites, knownLocations);
 		}
 
 	}
