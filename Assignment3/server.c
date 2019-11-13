@@ -26,6 +26,8 @@
 #define MAX_CLIENTS 16
 // value to signify no client has connected at this index of the array
 #define NO_CLIENT -1
+// max characters in a site name
+#define ID_LEN 64
 
 struct message;
 struct hoplist;
@@ -35,6 +37,7 @@ struct siteLst;
 void updateSiteLst(char* sensorID, int xPosition, int yPosition);
 
 struct siteLst* globalSiteList;
+struct baseStation* globalBaseStationList; //10
 
 
 struct message{
@@ -53,6 +56,7 @@ struct hoplist{
 
 // new siteLst created for each baseStation - list of sites (clients will be added when they enter range)
 struct siteLst{
+	uint isBaseStation;
 	char* id;
 	struct siteLst* next;
 	int xPos;
@@ -75,9 +79,31 @@ void initializeBaseStations(FILE* baseStationFile){
 	char* line = NULL;
 	int read;
 	size_t len = 0;
+	uint index = 0;
+	globalBaseStationList = calloc(10, sizeof(struct baseStation));
 	while((read = getline(&line, &len, baseStationFile)) != -1){
-
+		globalBaseStationList[index]->id = strtok(read, " ");
+		globalBaseStationList[index]->xPos = atoi(strtok(NULL, " "));
+		globalBaseStationList[index]->yPos = atoi(strtok(NULL, " "));
+		uint degree = atoi(strtok(NULL, " "));
+		globalBaseStationList[index]->connectedLst = calloc(1, sizeof(struct siteLst));
+		struct siteLst* iterator = globalSiteList[index]->connectedLst;
+		for (uint i = 0; i < degree; ++i){
+			iterator->isBaseStation = 1;
+			iterator->id = calloc(ID_LEN+1, sizeof(char));
+			if (i == degree-1){
+				strcpy(iterator->id, strtok(NULL, "\n"));
+				iterator->next = NULL;
+			} else {
+				strcpy(iterator->id, strtok(NULL, " "));
+				iterator->next = calloc(1, sizeof(struct siteLst));
+				iterator = iterator->next;
+			}			
+		}
+		index++;
 	}
+
+	
 	fclose(baseStationFile);
 	if (line) free(line);
 }
