@@ -74,7 +74,7 @@ void initializeBaseStations(FILE* baseStationFile){
 	}
 	char* line = NULL;
 	int read;
-	uint len = 0;
+	size_t len = 0;
 	while((read = getline(&line, &len, baseStationFile)) != -1){
 
 	}
