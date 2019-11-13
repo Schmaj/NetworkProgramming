@@ -14,6 +14,8 @@
 #include <ctype.h>
 #include <netdb.h>
 #include <math.h>
+#include <arpa/inet.h>
+#include <limits.h>
 
 // max characters in an address
 #define ADDRESS_LEN 64
@@ -34,6 +36,10 @@
 #define QUIT_CMD "QUIT"
 #define WHERE_CMD "WHERE"
 
+#define DATA_MSG "DATAMESSAGE"
+
+
+char* THIS_ID = "THIS_ID";
 
 struct siteLst{
 	char* id;
@@ -56,17 +62,133 @@ struct message{
 	struct hoplist* hoplst;
 };
 
+// frees all dynamic memory in a message m, including m itself
+void freeMsg(struct message* m){
+	if(m->messageType){
+		free(m->messageType);
+		m->messageType = NULL;
+	}
+	if(m->originID){
+		free(m->originID);
+		m->originID = NULL;
+	}
+	if(m->nextID){
+		free(m->nextID);
+		m->nextID = NULL;
+	}
+	if(m->destinationID){
+		free(m->destinationID);
+		m->destinationID = NULL;
+	}
+	struct hoplist* l = m->hoplst;
+	while(l != NULL){
+
+		if(l->id){
+			free(l->id);
+			l->id = NULL;
+		}
+
+		struct hoplist* tmp = l;
+		l = l->next;
+		free(tmp);
+	}
+
+	free(m);
+}
+
 // takes in message m, fills in nextID from reachableSites and destinationID, and sends appropriate message to server
-void sendMsg(struct message* m, struct siteLst* reachableSites){
+void sendDataMsg(char* myID, int sockfd, struct message* m, struct siteLst* reachableSites, struct siteLst* knownLocations){
+
+	// find destination location
+	while(knownLocations != NULL){
+		if(stcmp(m->destinationID, knownLocations->id) == 0){
+			struct siteLst* dest = knownLocations;
+			break;
+		}
+		knownLocations = knownLocations->next;
+	}
 
 	// closest to dest, ties alphabetically
-	struct siteLst* closest;
+	struct siteLst* closestSite = NULL;
+	int closestDist = INT_MAX;
 
 	// pointer to walk through list of reachable sites
 	struct siteLst* itr = reachableSites;
+	// loop over reachable sites and find site closest to destination that would not cause a cycle
 	while(itr != NULL){
 
+		// flag representing whether or not site itr is on the hoplst
+		int skip = 0;
+
+		for(struct hoplst* visited = m->hoplst; visited != NULL; visited = visited->next){
+			if(strcmp(itr->id, visited->id) == 0){
+				skip = 1;
+				break;
+			}
+		}
+
+		// if itr is on hoplst, sending message would cause cycle, skip and consider next site
+		if(skip == 1){
+			itr = itr->next;
+			continue;
+		}
+
+		// square of distance from itr to dest
+		int dist = (dest->xPos - itr->xPos)  * (dest->xPos - itr->xPos) + (dest->yPos - itr->yPos) * (dest->yPos - itr->yPos);
+
+		// update closest values
+		if(dist < closestDist){
+			closestSite = itr;
+			closestDist = dist;
+		}
+		// distance is equal, settle tie in lexicographical order
+		else if(dist == closestDist){
+			// sets closestSite to the site with the lexicographically smaller name, between itr and closestSite
+			closestSite = strcmp(itr->id, closestSite->id) < 0 ? itr : closestSite;
+		}
+
+		// move on to next site
+		itr = itr->next;
+
 	}
+
+	if(closestSite == NULL){
+		printf("No closest site, not sending message\n");
+		return;
+	}
+
+	// mark next site to which message should be sent
+	if(m->nextID != NULL){
+		free(m->nextID);
+		m->nextID = NULL;
+	}
+	m->nextID = calloc(ID_LEN, sizeof(char));
+	strcpy(m->nextID, closestSite->id);
+	// add self to the hoplist
+	for(struct hoplist* l = m->hoplst; 1; l = l->next){
+		// just made message, hoplist uninitialized
+		if(l == NULL){
+			m->hoplst = calloc(1, sizeof(struct hoplist));
+			m->hoplst->id = calloc(ID_LEN, sizeof(char));
+			strcpy(m->hoplst->id, myID);
+		}
+		if(l->next == NULL){
+			l->next = calloc(1, sizeof(struct hoplist));
+			l->next->id = calloc(ID_LEN, sizeof(char));
+			strcpy(l->next->id, myID);
+		}
+	}
+	// increment hop length
+	m->hopLeng++;
+
+	char* msg = msgToStr(m);
+
+	// send message to server, add one byte for null terminator
+	write(sockfd, msg, strlen(msg) + 1);
+
+	free(msg);
+	msg = NULL;
+
 
 }
 
@@ -120,10 +242,9 @@ struct message * parseMsg(char * msg, int msgSize){
 /*
 Fnc: converts message struct into a string to be sent to the next "node"
 Arg: struct message to be converted into a string to be sent elsewhere
-Arg: thisID is the null-terminated string for the name of the sender (self)
 Ret: string to be send, dynamically stored
 */
-char* msgToStr(struct message* msg, char* thisID){
+char* msgToStr(struct message* msg){
 	int msg_size = strlen(msg->messageType) + strlen(msg->originID) + strlen(msg->nextID);
 	msg_size += strlen(msg->destinationID) + (int)ceil(log10(msg->hopLeng))+6;
 	struct hoplist* iterator = msg->hoplst;
@@ -131,7 +252,7 @@ char* msgToStr(struct message* msg, char* thisID){
 		msg_size += strlen(iterator->id) + 1;
 		iterator = iterator->next;
 	}
-	msg_size += strlen(thisID) + 1;
+	msg_size += strlen(THIS_ID) + 1;
 
 	char * str = calloc(msg_size+1, sizeof(char));
 	strcat(str, msg->messageType);
@@ -152,7 +273,7 @@ char* msgToStr(struct message* msg, char* thisID){
 		iterator = iterator->next;
 	}
 	iterator = NULL;
-	strcat(str, thisID);
+	strcat(str, THIS_ID);
 	strcat(str, " ");
 	return str;
 }
@@ -304,7 +425,8 @@ QUIT
 WHERE [SensorID/BaseID]
 
 */
-int interactWithConsole(struct siteLst* reachableSites, char* sensorID, int SensorRange, int sockfd){
+int interactWithConsole(char* myID, int sockfd, struct siteLst* reachableSites, struct siteLst* knownLocations){
+
 	// buffer to hold command
 	char buf[CMD_SIZE];
 
@@ -336,10 +458,41 @@ int interactWithConsole(struct siteLst* reachableSites, char* sensorID, int Sens
 	}
 	// SENDDATA [DestinationID]
 	else if(strcmp(command, SEND_CMD) == 0){
-		
+
+		struct message* m = calloc(1, sizeof(struct message));
+
+		// initialize messageType
+		m->messageType = calloc(MAX_SIZE, sizeof(char));
+		strcpy(m->messageType, DATA_MSG);
+
+		m->originID = calloc(ID_LEN, sizeof(char));
+		strcpy(m->originID, myID);
+
+		// nextID initially null, will be determined 
+		m->nextID = NULL;
+
+		// destination ID intialized to destination given by user
+		m->destinationID = calloc(ID_LEN, sizeof(char));
+		strcpy(destinationID, strtok(buf, " \0"));
+
+		// hopleng and hoplist initially empty, will be updated to include self in sendDataMsg()
+		m->hopLeng = 0;
+		m->hoplst = NULL;
+
+		struct siteLst* knownLocations;
+		sendDataMsg(myID, sockfd, m, reachableSites, knownLocations);
+
+		// TODO free message
+		freeMsg(m);
+
+		return 0;
+
+
 	}
 	// QUIT
 	else if(strcmp(command, QUIT_CMD) == 0){
+		// return value of 1 signals quit, all real cleanup will happen in main
+		return 1;
 		
 	}
 	// WHERE [SensorID/BaseID]
