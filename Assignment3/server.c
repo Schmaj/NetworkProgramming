@@ -572,7 +572,7 @@ int interactWithConsole(){
 		m->hoplst = NULL;
 
 		if (strcmp(m->originID, CONTROL) == 0){
-			handleMessage(NULL);
+			sendMsgOverSocket(m);
 		} else { //base station
 			struct baseStation* base = NULL;
 
