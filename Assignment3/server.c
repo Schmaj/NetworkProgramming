@@ -44,6 +44,8 @@
 #define DATA_MSG "DATAMESSAGE"
 #define WHERE_MSG "WHERE"
 #define UPDATE_MSG "UPDATEPOSITION"
+#define SEND_CMD "SENDDATA"
+#define CONTROL "CONTROL"
 
 // max characters in a site name
 #define ID_LEN 64
@@ -259,8 +261,55 @@ void updateSiteLst(char* sensorID, int xPosition, int yPosition){ // call that f
 	return;
 }
 
-int interactWithConsole(){
+int interactWithConsole(/*don't know what we need yet*/){
+	// buffer to hold command
+	char buf[CMD_SIZE];
 
+	// read next line from command line into buf
+	fgets(buf, CMD_SIZE, stdin);
+
+	char command[CMD_SIZE];
+
+	strcpy(command, strtok(buf, " "));
+	// SENDDATA [DestinationID]
+	if(strcmp(command, SEND_CMD) == 0){
+
+		struct message* m = calloc(1, sizeof(struct message));
+
+		// initialize messageType
+		m->messageType = calloc(ID_LEN, sizeof(char));
+		strcpy(m->messageType, DATA_MSG);
+
+		m->originID = calloc(ID_LEN, sizeof(char));
+		strcpy(m->originID, strtok(NULL, " "));
+
+		// nextID initially null, will be determined 
+		m->nextID = NULL;
+
+		// destination ID intialized to destination given by user
+		m->destinationID = calloc(ID_LEN, sizeof(char));
+		strcpy(m->destinationID, strtok(buf, "\n"));
+
+		// hopleng and hoplist initially empty, will be updated to include self in sendDataMsg()
+		m->hopLeng = 0;
+		m->hoplst = NULL;
+
+		struct siteLst* knownLocations;
+		sendDataMsg(sensorID, sockfd, m, reachableSites, knownLocations);
+
+		// TODO free message
+		freeMsg(m);
+
+		return 0;
+
+
+	}
+	// QUIT
+	else if(strcmp(command, QUIT_CMD) == 0){
+		// return value of 1 signals quit, all real cleanup will happen in main
+		return 1;
+		
+	}
 
 	return 0;
 }
