@@ -68,6 +68,18 @@ struct baseStation{
 
 // initializes global list of base stations from base station file
 void initializeBaseStations(FILE* baseStationFile){
+	if (baseStationFile == NULL){
+		perror("initializeBaseStations, baseStationFile");
+		exit(EXIT_FAILURE);
+	}
+	char* line = NULL;
+	int read;
+	uint len = 0;
+	while((read = getline(&line, &len, baseStationFile)) != -1){
+
+	}
+	fclose(baseStationFile);
+	if (line) free(line);
 }
 
 /*
