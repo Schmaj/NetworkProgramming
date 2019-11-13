@@ -81,21 +81,25 @@ void initializeBaseStations(FILE* baseStationFile){
 	size_t len = 0;
 	uint index = 0;
 	globalBaseStationList = calloc(10, sizeof(struct baseStation));
+	
 	while((read = getline(&line, &len, baseStationFile)) != -1){
-		globalBaseStationList[index]->id = strtok(read, " ");
-		globalBaseStationList[index]->xPos = atoi(strtok(NULL, " "));
-		globalBaseStationList[index]->yPos = atoi(strtok(NULL, " "));
+		globalBaseStationList[index].id = calloc(ID_LEN+1, sizeof(char));
+		strncpy(globalBaseStationList[index].id, strtok(line, " "), ID_LEN);
+
+		globalBaseStationList[index].xPos = atoi(strtok(NULL, " "));
+		globalBaseStationList[index].yPos = atoi(strtok(NULL, " "));
+
 		uint degree = atoi(strtok(NULL, " "));
-		globalBaseStationList[index]->connectedLst = calloc(1, sizeof(struct siteLst));
-		struct siteLst* iterator = globalSiteList[index]->connectedLst;
+		globalBaseStationList[index].connectedLst = calloc(1, sizeof(struct siteLst));
+		struct siteLst* iterator = globalBaseStationList[index].connectedLst;
 		for (uint i = 0; i < degree; ++i){
 			iterator->isBaseStation = 1;
 			iterator->id = calloc(ID_LEN+1, sizeof(char));
 			if (i == degree-1){
-				strcpy(iterator->id, strtok(NULL, "\n"));
+				strncpy(iterator->id, strtok(NULL, "\n"), ID_LEN);
 				iterator->next = NULL;
 			} else {
-				strcpy(iterator->id, strtok(NULL, " "));
+				strncpy(iterator->id, strtok(NULL, " "), ID_LEN);
 				iterator->next = calloc(1, sizeof(struct siteLst));
 				iterator = iterator->next;
 			}			
@@ -103,7 +107,21 @@ void initializeBaseStations(FILE* baseStationFile){
 		index++;
 	}
 
-	
+	for (uint i = 0; i < 10; ++i){
+		if (globalBaseStationList[i].id == NULL) continue;
+		for (uint j = 0; j < 10; ++j){
+			if (i == j) continue;
+			struct siteLst* siteItr = globalBaseStationList[j].connectedLst;
+			while(siteItr){
+				if (strcmp(globalBaseStationList[i].id, siteItr->id) == 0){
+					siteItr->xPos = globalBaseStationList[i].xPos;
+					siteItr->yPos = globalBaseStationList[i].yPos;
+					break;
+				}
+				siteItr = siteItr->next;
+			}
+		}
+	}	
 	fclose(baseStationFile);
 	if (line) free(line);
 }
