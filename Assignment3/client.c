@@ -775,14 +775,3 @@ int main(int argc, char * argv[]) {
 
 	return 0;
 }
-
-/*
-
-select() to read from stdin and any tcp connections
-
-sendMsg()
-
-recvMsg()
-
-interactWithConsole() // interpreting commands
-*/

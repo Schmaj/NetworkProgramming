@@ -59,6 +59,12 @@ struct siteLst{
 	int yPos;
 };
 
+struct baseStation{
+	int xPos;
+	int yPos;
+	char* id;
+	struct siteLst* connectedLst;
+};
 
 // initializes global list of base stations from base station file
 void initializeBaseStations(FILE* baseStationFile){
@@ -103,12 +109,6 @@ char* msgToStr(struct message* msg, char* thisID){
 	return str;
 }
 
-struct baseStation{
-	int xPos;
-	int yPos;
-	char* id;
-	struct siteLst* connectedLst;
-};
 
 /*
 Ret: void
