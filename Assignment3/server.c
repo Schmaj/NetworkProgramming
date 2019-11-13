@@ -296,6 +296,53 @@ void freeMsg(struct message* m){
 	free(m);
 }
 
+void giveToBaseStation(char* baseID, struct message* m){
+	// if this site is the destination
+	if(strcmp(m->destinationID, baseID) == 0){
+		// print that message was properly received
+		printf("%s: Message from %s to %s successfully received\n", baseID, m->originID, baseID);
+	}
+}
+
+void* handleMessage(void* args){
+	struct client* cli = (struct client*)args;
+
+	// estimated max size of message
+	// length of name (plus 1 character for space) multiplied by the max number of names (full hop list + originalSiteId
+	// + destinationSiteID) + message type length (MAX_SIZE) + integer (hoplength)
+	int msgSize = (ID_LEN + 1) * (MAX_HOP + 2) + MAX_SIZE + INT_LEN;
+
+	// buffer to hold message from server
+	char* buf = calloc(msgSize, sizeof(char));
+
+	int bytes = read(cli->fd, buf, msgSize);
+
+	// client has disconnected
+	if(bytes == 0){
+		// TODO: handle disconnected client
+		// need to remove client from clients list
+	}
+
+	struct message* m = parseMsg(buf, bytes);
+
+	// if message is a datamessage
+	if(strcmp(m->messageType, DATA_MSG) == 0){
+		char* baseID = NULL;
+		giveToBaseStation(baseID, m);
+	}
+	else if(strcmp(m->messageType, WHERE_MSG) == 0){
+
+	}
+	else if(strcmp(m->messageType, UPDATE_MSG) == 0){
+
+	}
+
+
+	free(cli);
+
+	return NULL;
+}
+
 int interactWithConsole(/*don't know what we need yet*/){
 	// buffer to hold command
 	char buf[CMD_SIZE];
@@ -329,8 +376,11 @@ int interactWithConsole(/*don't know what we need yet*/){
 		m->hopLeng = 0;
 		m->hoplst = NULL;
 
-		struct siteLst* knownLocations;
-		sendDataMsg(sensorID, sockfd, m, reachableSites, knownLocations);
+		if (strcmp(m->originID, CONTROL) == 0){
+			handleMessage(NULL);
+		} else { //base station
+			giveToBaseStation(m->originID, m);
+		}
 
 		// TODO free message
 		freeMsg(m);
@@ -379,52 +429,7 @@ int recvMsg(int sockfd, char* myID, struct siteLst* reachableSites, struct siteL
 }
 */
 
-void giveToBaseStation(char* baseID, struct message* m){
-	// if this site is the destination
-	if(strcmp(m->destinationID, baseID) == 0){
-		// print that message was properly received
-		printf("%s: Message from %s to %s successfully received\n", baseID, m->originID, baseID);
-	}
-}
 
-void* handleMessage(void* args){
-	struct client* cli = (struct client*)args;
-
-	// estimated max size of message
-	// length of name (plus 1 character for space) multiplied by the max number of names (full hop list + originalSiteId
-	// + destinationSiteID) + message type length (MAX_SIZE) + integer (hoplength)
-	int msgSize = (ID_LEN + 1) * (MAX_HOP + 2) + MAX_SIZE + INT_LEN;
-
-	// buffer to hold message from server
-	char* buf = calloc(msgSize, sizeof(char));
-
-	int bytes = read(cli->fd, buf, msgSize);
-
-	// client has disconnected
-	if(bytes == 0){
-		// TODO: handle disconnected client
-		// need to remove client from clients list
-	}
-
-	struct message* m = parseMsg(buf, bytes);
-
-	// if message is a datamessage
-	if(strcmp(m->messageType, DATA_MSG) == 0){
-		char* baseID = NULL;
-		giveToBaseStation(baseID, m);
-	}
-	else if(strcmp(m->messageType, WHERE_MSG) == 0){
-
-	}
-	else if(strcmp(m->messageType, UPDATE_MSG) == 0){
-
-	}
-
-
-	free(cli);
-
-	return NULL;
-}
 
 int main(int argc, char * argv[]) {
 	
