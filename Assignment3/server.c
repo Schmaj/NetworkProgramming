@@ -16,6 +16,17 @@
 #include <math.h>
 #include <pthread.h>
 
+// max number of characters in filename
+#define MAX_FILE 64
+// number of tcp connection requests allowed in backlog
+#define BACKLOG 10
+// number of seconds to block on select() call
+#define TIMEOUT 15
+// maximum number of clients allowed to connect
+#define MAX_CLIENTS 16
+// value to signify no client has connected at this index of the array
+#define NO_CLIENT -1
+
 struct message;
 struct hoplist;
 char* msgToStr(struct message* msg, char* thisID);
@@ -25,9 +36,6 @@ void updateSiteLst(char* sensorID, int xPosition, int yPosition);
 
 struct siteLst* globalSiteList;
 
-int main(int argc, char * argv[]) {
-	return 0;
-}
 
 struct message{
 	char* messageType;
@@ -42,6 +50,19 @@ struct hoplist{
 	char* id;
 	struct hoplist* next;
 };
+
+// new siteLst created for each baseStation - list of sites (clients will be added when they enter range)
+struct siteLst{
+	char* id;
+	struct siteLst* next;
+	int xPos;
+	int yPos;
+};
+
+
+// initializes global list of base stations from base station file
+void initializeBaseStations(FILE* baseStationFile){
+}
 
 /*
 Fnc: converts message struct into a string to be sent to the next "node"
@@ -89,14 +110,6 @@ struct baseStation{
 	struct siteLst* connectedLst;
 };
 
-// new siteLst created for each baseStation - list of sites (clients will be added when they enter range)
-struct siteLst{
-	char* id;
-	struct siteLst* next;
-	int xPos;
-	int yPos;
-};
-
 /*
 Ret: void
 Arg: msg is the message received. if msg->messageType == "Update Position", 
@@ -116,6 +129,138 @@ void updateSiteLst(char* sensorID, int xPosition, int yPosition){ // call that f
 	iterator->next = NULL;		//just to be sure lol
 	iterator = NULL;
 	return;
+}
+
+int interactWithConsole(){
+
+
+	return 0;
+}
+
+int main(int argc, char * argv[]) {
+	
+	// check for correct number of arguments
+	if(argc != 3){
+		printf("incorrect arguments\nUsage: ./server.out [control port] [base station file]");
+		return 0;
+	}
+
+	// read in port from arguments
+	int port = atoi(argv[1]);
+
+	// copy filename from arguments
+	char* fileName = calloc(MAX_FILE, sizeof(char));
+	strcpy(fileName, argv[2]);
+
+	// open base station file for reading
+	FILE* baseStationFile = fopen(fileName, "r");
+
+	free(fileName);
+	fileName = NULL;
+
+	initializeBaseStations(baseStationFile);
+
+	// create socket
+	int listenerFd = socket(AF_INET, SOCK_STREAM, 0);
+
+	if(listenerFd < 0){
+		perror("socket() failed\n");
+		return EXIT_FAILURE;
+	}
+
+	// holds address and port of server
+	struct sockaddr_in server;
+
+	// zero out sockaddr
+	memset(&server, 0, sizeof(struct sockaddr_in));
+
+	// use IPv4
+	server.sin_family = AF_INET;
+	// allow any ip address
+	server.sin_addr.s_addr = htonl(INADDR_ANY);
+	// initialize to given port
+	server.sin_port = htons(port);
+
+	// size of struct for bind()
+	int len = sizeof(struct sockaddr_in);
+
+	// bind listening server to address 
+	if(bind(listenerFd, (struct sockaddr*)&server, len) != 0){
+		perror("bind() failed\n");
+		return EXIT_FAILURE;
+	}
+
+	if(listen(listenerFd, BACKLOG)){
+		perror("ERROR: listen() failed\n");
+		return EXIT_FAILURE;
+	}
+
+
+	// structure to hold a set of file descriptors to watch
+	fd_set rfds;
+
+	// file descriptor for stdin, could change based on piping or other output shenanigans
+	int standardInput = fileno(stdin);
+
+	// select over stdin (for quit), listener (for new clients), tcp_comm sockets (for datamessages), and start new thread to handle message when message comes in
+	while(1){
+
+		int maxFd = standardInput > listenerFd ? standardInput : listenerFd;
+
+		// set rfds to include no file descriptors
+		FD_ZERO(&rfds);
+
+		// add stdin to fdset
+		FD_SET(standardInput, &rfds);
+
+		// add socket for server to fdset
+		FD_SET(listenerFd, &rfds);
+
+		// TODO: loop over connected clients and add to fdset
+
+		// structure to specify TIMEOUT second timeout on select() call
+		struct timeval timeout;
+
+		timeout.tv_sec = TIMEOUT;
+		timeout.tv_usec = 0;
+
+		// wait for activity on listening socket, or any active client
+		int retval = select(maxFd, &rfds, NULL, NULL, &timeout);
+
+		if(retval == 0){
+			printf("No Activity\n");
+			continue;
+			//return 0;
+		}
+		else if(retval == -1){
+			perror("ERROR Select() failed\n");
+			return EXIT_FAILURE;
+		}
+
+		// received command message on stdin
+		if(FD_ISSET(standardInput, &rfds)){
+			
+			int quit = interactWithConsole();
+
+			if(quit == 1){
+				// TODO: clean up resources, wait for threads to finish, kill
+			}
+		}
+		// new client connecting
+		if(FD_ISSET(listenerFd, &rfds)){
+			// TODO: accept connection
+		}
+		/*
+		for(int n = 0; n < numClients; n++){
+			if(FD_ISSET(clients[n], &rfds)){
+				// TODO: make new thread to deal with message
+			}
+		}
+		*/
+	}
+
+
+	return 0;
 }
 /*
 baseStationToBaseStation()
