@@ -488,7 +488,7 @@ int interactWithConsole(char* sensorID, int sockfd, int SensorRange, struct site
 
 		// destination ID intialized to destination given by user
 		m->destinationID = calloc(ID_LEN+1, sizeof(char));
-		strcpy(m->destinationID, strtok(buf, " \0"));
+		strcpy(m->destinationID, strtok(NULL, " \0"));
 
 		// hopleng and hoplist initially empty, will be updated to include self in sendDataMsg()
 		m->hopLeng = 0;

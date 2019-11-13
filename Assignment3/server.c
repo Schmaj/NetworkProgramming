@@ -45,6 +45,7 @@
 #define WHERE_MSG "WHERE"
 #define UPDATE_MSG "UPDATEPOSITION"
 #define SEND_CMD "SENDDATA"
+#define QUIT_CMD "QUIT"
 #define CONTROL "CONTROL"
 
 // max characters in a site name
@@ -261,6 +262,40 @@ void updateSiteLst(char* sensorID, int xPosition, int yPosition){ // call that f
 	return;
 }
 
+// frees all dynamic memory in a message m, including m itself
+void freeMsg(struct message* m){
+	if(m->messageType){
+		free(m->messageType);
+		m->messageType = NULL;
+	}
+	if(m->originID){
+		free(m->originID);
+		m->originID = NULL;
+	}
+	if(m->nextID){
+		free(m->nextID);
+		m->nextID = NULL;
+	}
+	if(m->destinationID){
+		free(m->destinationID);
+		m->destinationID = NULL;
+	}
+	struct hoplist* l = m->hoplst;
+	while(l != NULL){
+
+		if(l->id){
+			free(l->id);
+			l->id = NULL;
+		}
+
+		struct hoplist* tmp = l;
+		l = l->next;
+		free(tmp);
+	}
+
+	free(m);
+}
+
 int interactWithConsole(/*don't know what we need yet*/){
 	// buffer to hold command
 	char buf[CMD_SIZE];
@@ -288,7 +323,7 @@ int interactWithConsole(/*don't know what we need yet*/){
 
 		// destination ID intialized to destination given by user
 		m->destinationID = calloc(ID_LEN, sizeof(char));
-		strcpy(m->destinationID, strtok(buf, "\n"));
+		strcpy(m->destinationID, strtok(NULL, "\n"));
 
 		// hopleng and hoplist initially empty, will be updated to include self in sendDataMsg()
 		m->hopLeng = 0;
