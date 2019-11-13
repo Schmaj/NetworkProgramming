@@ -359,18 +359,18 @@ int interactWithConsole(){
 		struct message* m = calloc(1, sizeof(struct message));
 
 		// initialize messageType
-		m->messageType = calloc(ID_LEN, sizeof(char));
-		strcpy(m->messageType, DATA_MSG);
+		m->messageType = calloc(ID_LEN+1, sizeof(char));
+		strncpy(m->messageType, DATA_MSG, ID_LEN);
 
-		m->originID = calloc(ID_LEN, sizeof(char));
-		strcpy(m->originID, strtok(NULL, " "));
+		m->originID = calloc(ID_LEN+1, sizeof(char));
+		strncpy(m->originID, strtok(NULL, " "), ID_LEN);
 
 		// nextID initially null, will be determined 
 		m->nextID = NULL;
 
 		// destination ID intialized to destination given by user
-		m->destinationID = calloc(ID_LEN, sizeof(char));
-		strcpy(m->destinationID, strtok(NULL, "\n"));
+		m->destinationID = calloc(ID_LEN+1, sizeof(char));
+		strncpy(m->destinationID, strtok(NULL, "\n"), ID_LEN);
 
 		// hopleng and hoplist initially empty, will be updated to include self in sendDataMsg()
 		m->hopLeng = 0;
