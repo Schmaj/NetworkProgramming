@@ -479,17 +479,17 @@ int interactWithConsole(char* sensorID, int sockfd, int SensorRange, struct site
 
 		// initialize messageType
 		m->messageType = calloc(ID_LEN+1, sizeof(char));
-		strcpy(m->messageType, DATA_MSG);
+		strncpy(m->messageType, DATA_MSG, ID_LEN);
 
 		m->originID = calloc(ID_LEN+1, sizeof(char));
-		strcpy(m->originID, sensorID);
+		strncpy(m->originID, sensorID, ID_LEN);
 
 		// nextID initially null, will be determined 
 		m->nextID = NULL;
 
 		// destination ID intialized to destination given by user
 		m->destinationID = calloc(ID_LEN+1, sizeof(char));
-		strcpy(m->destinationID, strtok(NULL, " \0"));
+		strncpy(m->destinationID, strtok(NULL, "\n"), ID_LEN);
 
 		// hopleng and hoplist initially empty, will be updated to include self in sendDataMsg()
 		m->hopLeng = 0;
