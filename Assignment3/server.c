@@ -26,6 +26,22 @@
 #define MAX_CLIENTS 16
 // value to signify no client has connected at this index of the array
 #define NO_CLIENT -1
+// value to signify this client does not have a thread currently running
+#define NO_THREAD 0
+
+#define CMD_SIZE 256
+// max number of characters in xPos or yPos for MOVE command
+#define INT_LEN 16
+//max number of bytes to be read in
+#define MAX_REACHABLE 32
+
+// maximum expected number of hops in a hop list
+#define MAX_HOP 16
+
+#define DATA_MSG "DATAMESSAGE"
+#define WHERE_MSG "WHERE"
+#define UPDATE_MSG "UPDATEPOSITION"
+
 
 struct message;
 struct hoplist;
@@ -65,6 +81,59 @@ struct baseStation{
 	char* id;
 	struct siteLst* connectedLst;
 };
+
+struct client{
+	int fd;
+	struct siteLst* site;
+	pthread_t tid;
+};
+
+/*
+Arg msg: message sent in, to be parsed and information put into struct message
+	Must abide by format from specs, with a space(not NULL byte) at the end
+Arg msgSize: Total size/length of message
+Returns: struct message with info from msg
+*/
+struct message * parseMsg(char * msg, int msgSize){		
+	char * cpy = calloc(strlen(msg)+1, sizeof(char));
+	strcpy(cpy, msg);
+
+	struct message* retMsg = calloc(1, sizeof(struct message));
+	retMsg->messageType = calloc(ID_LEN, sizeof(char));
+	strcpy(retMsg->messageType, strtok(cpy, " "));
+
+	if (strcmp(retMsg->messageType, "DATAMESSAGE") == 0){
+
+		retMsg->originID = calloc(ID_LEN, sizeof(char));
+		strcpy(retMsg->originID, strtok(NULL, " "));
+
+		retMsg->nextID = calloc(ID_LEN, sizeof(char));
+		strcpy(retMsg->nextID, strtok(NULL, " "));
+
+		retMsg->destinationID = calloc(ID_LEN, sizeof(char));
+		strcpy(retMsg->destinationID, strtok(NULL, " "));
+
+		retMsg->hopLeng = atoi(strtok(NULL, " "));
+
+		retMsg->hoplst = calloc(1, sizeof(struct message));
+		struct hoplist* iterator = retMsg->hoplst;
+
+		for (unsigned int i = 0; i < retMsg->hopLeng; ++i){
+			iterator->id = strtok(NULL, " ");
+			if (i == retMsg->hopLeng-1){
+				iterator->next = NULL;
+			} else {
+				iterator->next = calloc(1, sizeof(struct hoplist));
+				iterator = iterator->next;
+			}
+		}
+
+		free(cpy);
+	} else {
+		free(cpy);
+	}
+	return retMsg;
+}
 
 // initializes global list of base stations from base station file
 void initializeBaseStations(FILE* baseStationFile){
@@ -149,6 +218,83 @@ int interactWithConsole(){
 	return 0;
 }
 
+/*
+
+// receive a message from socket
+int recvMsg(int sockfd, char* myID, struct siteLst* reachableSites, struct siteLst* knownLocations){
+
+	// estimated max size of message
+	// length of name (plus 1 character for space) multiplied by the max number of names (full hop list + originalSiteId
+	// + destinationSiteID) + message type length (MAX_SIZE) + integer (hoplength)
+	int msgSize = (ID_LEN + 1) * (MAX_HOP + 2) + MAX_SIZE + INT_LEN;
+
+	// buffer to hold message from server
+	char* buf = calloc(msgSize, sizeof(char));
+
+	int bytes = read(sockfd, buf, msgSize);
+
+	struct message* m = parseMsg(buf, bytes);
+
+	// if this site is the destination
+	if(strcmp(m->destinationID, myID) == 0){
+		// print that message was properly received
+		printf("%s: Message from %s to %s successfully received\n", myID, m->originID, myID);
+		return 0;
+	}
+
+	sendDataMsg(myID, sockfd, m, reachableSites, knownLocations);
+
+	return 0;
+}
+*/
+
+void giveToBaseStation(char* baseID, struct message* m){
+	// if this site is the destination
+	if(strcmp(m->destinationID, baseID) == 0){
+		// print that message was properly received
+		printf("%s: Message from %s to %s successfully received\n", baseID, m->originID, baseID);
+	}
+}
+
+void* handleMessage(void* args){
+	struct client* cli = (struct client*)args;
+
+	// estimated max size of message
+	// length of name (plus 1 character for space) multiplied by the max number of names (full hop list + originalSiteId
+	// + destinationSiteID) + message type length (MAX_SIZE) + integer (hoplength)
+	int msgSize = (ID_LEN + 1) * (MAX_HOP + 2) + MAX_SIZE + INT_LEN;
+
+	// buffer to hold message from server
+	char* buf = calloc(msgSize, sizeof(char));
+
+	int bytes = read(cli->fd, buf, msgSize);
+
+	// client has disconnected
+	if(bytes == 0){
+		// TODO: handle disconnected client
+		// need to remove client from clients list
+	}
+
+	struct message* m = parseMsg(buf, bytes);
+
+	// if message is a datamessage
+	if(strcmp(m->messageType, DATA_MSG) == 0){
+		char* baseID = NULL;
+		giveToBaseStation(baseID, m);
+	}
+	else if(strcmp(m->messageType, WHERE_MSG) == 0){
+
+	}
+	else if(strcmp(m->messageType, UPDATE_MSG) == 0){
+
+	}
+
+
+	free(cli);
+
+	return NULL;
+}
+
 int main(int argc, char * argv[]) {
 	
 	// check for correct number of arguments
@@ -207,6 +353,15 @@ int main(int argc, char * argv[]) {
 		return EXIT_FAILURE;
 	}
 
+	// initialize a list of clients
+	struct client* clientList = calloc(BACKLOG, sizeof(struct client));
+	// set each client's file descriptor to special value no client, meaning no client has connected
+	// in that index of the array
+	for(int n = 0; n < BACKLOG; n++){
+		clientList[n].fd = NO_CLIENT;
+		clientList[n].site = NULL;
+	}
+
 
 	// structure to hold a set of file descriptors to watch
 	fd_set rfds;
@@ -228,7 +383,15 @@ int main(int argc, char * argv[]) {
 		// add socket for server to fdset
 		FD_SET(listenerFd, &rfds);
 
-		// TODO: loop over connected clients and add to fdset
+		// loop over connected clients and add to fdset
+		for(int n = 0; n < BACKLOG; n++){
+			// if a client has connected at this index
+			if(clientList[n].fd != NO_CLIENT){
+				// add that client's file descriptor to our fdset
+				FD_SET(clientList[n].fd, &rfds);
+				maxFd = clientList[n].fd > maxFd ? clientList[n].fd : maxFd;
+			}
+		}
 
 		// structure to specify TIMEOUT second timeout on select() call
 		struct timeval timeout;
@@ -262,13 +425,31 @@ int main(int argc, char * argv[]) {
 		if(FD_ISSET(listenerFd, &rfds)){
 			// TODO: accept connection
 		}
-		/*
-		for(int n = 0; n < numClients; n++){
-			if(FD_ISSET(clients[n], &rfds)){
-				// TODO: make new thread to deal with message
+		// loop over connected clients looking for message
+		for(int n = 0; n < BACKLOG; n++){
+			if(FD_ISSET(clientList[n].fd, &rfds)){
+				// TODO: figure out what you want to do with disconnected clients
+
+				// if a thread was previously created for this client, wait for that thread to finish
+				//  and join the thread before creating a new thread
+				if(clientList[n].tid != NO_THREAD){
+					if(pthread_join(clientList[n].tid, NULL) != 0){
+						perror("ERROR joining thread\n");
+						return EXIT_FAILURE;
+					}
+					// after joining, set tid back to NO_THREAD
+					clientList[n].tid = NO_THREAD;
+				}
+
+				// copy client struct into new memory to pass as arguments to thread
+				void* args = calloc(1, sizeof(struct client));
+				memcpy(args, &clientList[n], sizeof(struct client));
+				pthread_create(&clientList[n].tid, NULL, handleMessage, args);
 			}
 		}
-		*/
+
+
+
 	}
 
 
