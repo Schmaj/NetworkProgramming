@@ -30,6 +30,9 @@
 //max number of bytes to be read in
 #define MAX_REACHABLE 32
 
+// maximum expected number of hops in a hop list
+#define MAX_HOP 16
+
 #define MAX_SIZE 64
 
 // string literals for each command
@@ -201,6 +204,7 @@ void freeLst(struct siteLst* lst){
 
 
 // takes in message m, fills in nextID from reachableSites and destinationID, and sends appropriate message to server
+// adds self to hoplist at the end of this function
 void sendDataMsg(char* myID, int sockfd, struct message* m, struct siteLst* reachableSites, struct siteLst* knownLocations){
 
 	struct siteLst* dest = NULL;
@@ -588,6 +592,33 @@ int interactWithConsole(char* sensorID, int sockfd, int SensorRange, struct site
 
 }
 
+// receive a message from socket
+int recvMsg(int sockfd, char* myID, struct siteLst* reachableSites, struct siteLst* knownLocations){
+
+	// estimated max size of message
+	// length of name (plus 1 character for space) multiplied by the max number of names (full hop list + originalSiteId
+	// + destinationSiteID) + message type length (MAX_SIZE) + integer (hoplength)
+	int msgSize = (ID_LEN + 1) * (MAX_HOP + 2) + MAX_SIZE + INT_LEN;
+
+	// buffer to hold message from server
+	char* buf = calloc(msgSize, sizeof(char));
+
+	int bytes = read(sockfd, buf, msgSize);
+
+	struct message* m = parseMsg(buf, bytes);
+
+	// if this site is the destination
+	if(strcmp(m->destinationID, myID) == 0){
+		// print that message was properly received
+		printf("%s: Message from %s to %s successfully received\n", myID, m->originID, myID);
+		return 0;
+	}
+
+	sendDataMsg(myID, sockfd, m, reachableSites, knownLocations);
+
+	return 0;
+}
+
 int main(int argc, char * argv[]) {
 
 	// check correct number of arguments
@@ -628,12 +659,42 @@ int main(int argc, char * argv[]) {
 	// resolves server name and connects socket to server
 	connectToServer(sockfd, controlAddress, controlPort);
 
+	// control address no longer needed, free memory
+	free(controlAddress);
+	controlAddress = NULL;
+
 
 	// initialize list of reachable sites to empty
 	struct siteLst* reachableSites = NULL;
 
 	// sends initial updatePosition message and initializes list of reachable sites
 	updatePosition(reachableSites, sensorID, SensorRange, xPos, yPos, sockfd);
+
+	// initialize list of all sites with known location
+	struct siteLst* knownLocations = NULL;
+	struct siteLst* tmpItr = NULL;
+
+	// copy reachableSites into knownLocations
+	for(struct siteLst* itr = reachableSites; itr != NULL; itr = itr->next){
+		// initialize first site, set knownLocations to the head permanently
+		if(knownLocations == NULL){
+			knownLocations = calloc(1, sizeof(struct siteLst));
+			tmpItr = knownLocations;
+		}
+		else{
+			tmpItr->next = calloc(1, sizeof(struct siteLst));
+			tmpItr = tmpItr->next;
+		}
+
+		// initialize name
+		tmpItr->id = calloc(ID_LEN, sizeof(char));
+		strcpy(tmpItr->id, itr->id);
+
+		// copy position
+		tmpItr->xPos = itr->xPos;
+		tmpItr->yPos = itr->yPos;
+	}
+
 
 	// ready to loop?
 
@@ -675,13 +736,27 @@ int main(int argc, char * argv[]) {
 		}
 
 		if(FD_ISSET(standardInput, &rfds)){
-			// TODO:
-			interactWithConsole(sensorID, sockfd, SensorRange, reachableSites, NULL);
+			
+			int quit = interactWithConsole(sensorID, sockfd, SensorRange, reachableSites, knownLocations);
+
+			// quit command received, release memory and close sockets
+			if(quit == 1){
+				close(sockfd);
+
+				free(sensorID);
+				sensorID = NULL;
+
+				freeLst(reachableSites);
+				freeLst(knownLocations);
+
+				return 0;
+
+			}
 		}
 
 		if(FD_ISSET(sockfd, &rfds)){
 			// TODO:
-			// recvMsg()
+			recvMsg(sockfd, sensorID, reachableSites, knownLocations);
 		}
 
 	}
