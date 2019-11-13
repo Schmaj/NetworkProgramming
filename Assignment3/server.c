@@ -343,7 +343,7 @@ void* handleMessage(void* args){
 	return NULL;
 }
 
-int interactWithConsole(/*don't know what we need yet*/){
+int interactWithConsole(){
 	// buffer to hold command
 	char buf[CMD_SIZE];
 
