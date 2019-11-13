@@ -41,7 +41,7 @@
 #define DATA_MSG "DATAMESSAGE"
 
 
-char* THIS_ID = "THIS_ID";
+char* THIS_ID;
 
 struct siteLst{
 	char* id;
@@ -507,7 +507,39 @@ int interactWithConsole(char* sensorID, int sockfd, int SensorRange, struct site
 	}
 	// WHERE [SensorID/BaseID]
 	else if(strcmp(command, WHERE_CMD) == 0){
-		
+		char* whereID = calloc(ID_LEN+1, sizeof(char));
+		strncpy(whereID, strtok(NULL, "\n"), ID_LEN);
+		char* msg = calloc(2*ID_LEN + 1, sizeof(char));
+		sprintf(msg, "WHERE %s ", whereID);
+		int retno = write(sockfd, msg, 2*ID_LEN);
+		if (retno <= 0){
+			perror("interactWithConsole, WHERE, write");
+			exit(EXIT_FAILURE);
+		}
+		memset(msg, 0, 2*ID_LEN + 1);
+		retno = read(sockfd, msg, 2*ID_LEN);
+		if (retno <= 0){
+			perror("interactWithConsole, WHERE, read");
+			exit(EXIT_FAILURE);
+		}
+		/*
+		struct siteLst{
+		char* id;
+		struct siteLst* next;
+		int xPos;
+		int yPos;
+		};
+		*/
+		char* messageType = calloc(ID_LEN+1, sizeof(char));
+		strcpy(messageType, strtok(msg, " "));
+		if (strcmp(messageType, "THERE") != 0){
+			perror("interactWithConsole, WHERE, messageType");
+			exit(EXIT_FAILURE);
+		}
+		free(messageType);
+
+		struct siteLst* thereSite = calloc(1, sizeof(struct siteLst));
+
 	}
 
 	return 0;
@@ -578,6 +610,8 @@ int main(int argc, char * argv[]) {
 	// name of this sensor site
 	char* sensorID = calloc(ID_LEN + 1, sizeof(char));
 	strncpy(sensorID, argv[3], ID_LEN);
+	THIS_ID = calloc(ID_LEN+1, sizeof(char));
+	strncpy(THIS_ID, argv[3], ID_LEN);
 	
 	// can communicate only to other sites in this range
 	int SensorRange = atoi(argv[4]);
