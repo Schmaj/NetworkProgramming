@@ -220,6 +220,7 @@ void sendDataMsg(char* myID, int sockfd, struct message* m, struct siteLst* reac
 
 	if(dest == NULL){
 		printf("Do not know location of site %s\n", m->destinationID);
+		return;
 	}
 
 	// closest to dest, ties alphabetically

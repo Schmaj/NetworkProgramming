@@ -15,6 +15,7 @@
 #include <netdb.h>
 #include <math.h>
 #include <pthread.h>
+#include <limits.h>
 
 // max number of characters in filename
 #define MAX_FILE 64
@@ -28,6 +29,8 @@
 #define NO_CLIENT -1
 // value to signify this client does not have a thread currently running
 #define NO_THREAD 0
+// maximum number of base stations
+#define MAX_BASE 10
 
 #define CMD_SIZE 256
 // max number of characters in xPos or yPos for MOVE command
@@ -45,6 +48,8 @@
 #define WHERE_MSG "WHERE"
 #define UPDATE_MSG "UPDATEPOSITION"
 
+#define SERVER_ID "CONTROL"
+
 // max characters in a site name
 #define ID_LEN 64
 
@@ -57,6 +62,7 @@ void updateSiteLst(char* sensorID, int xPosition, int yPosition);
 
 struct siteLst* globalSiteList;
 struct baseStation* globalBaseStationList; //10
+struct client* clientList;
 
 
 struct message{
@@ -295,12 +301,173 @@ int recvMsg(int sockfd, char* myID, struct siteLst* reachableSites, struct siteL
 }
 */
 
-void giveToBaseStation(char* baseID, struct message* m){
-	// if this site is the destination
-	if(strcmp(m->destinationID, baseID) == 0){
-		// print that message was properly received
-		printf("%s: Message from %s to %s successfully received\n", baseID, m->originID, baseID);
+// only called if next recipient is known and not a base station
+// actually sends data over socket, frees message struct m
+void sendMsgOverSocket(struct message* m){
+
+	// socket descriptor for client
+	int sd = -1;
+
+	// not base station, forward message to correct client
+	for(int n = 0; n < MAX_CLIENTS; n++){
+		// if client has a name and name matches nextID
+		if(clientList[n].site && strcmp(clientList[n].site->id, m->nextID) == 0){
+			sd = clientList[n].fd;
+			break;
+		}
 	}
+
+	if(sd == -1){
+		printf("Client %s not found\n", m->nextID);
+		return;
+	}
+
+	char* buf = msgToStr(m, "");
+
+	int bytes = write(sd, buf, strlen(buf));
+
+
+	// TODO: double check error code
+	if(bytes == 0){
+		perror("write() failed\n");
+	}
+
+	free(m);
+
+
+}
+
+
+// for base station, finds id of next closest message to the destination, and updates fields in message accordingly
+// (nextID, hoplen, hoplist)
+void setNextID(char* myID, struct message* m, struct siteLst* reachableSites){
+	struct siteLst* dest = NULL;
+	struct siteLst* iterator = globalSiteList;
+
+	// find destination location
+	while(iterator != NULL){
+		if(strcmp(m->destinationID, iterator->id) == 0){
+			dest = iterator;
+			break;
+		}
+		iterator = iterator->next;
+	}
+
+	if(dest == NULL){
+		printf("Do not know location of site %s\n", m->destinationID);
+		return;
+	}
+
+	// closest to dest, ties alphabetically
+	struct siteLst* closestSite = NULL;
+	int closestDist = INT_MAX;
+
+	// pointer to walk through list of reachable sites
+	struct siteLst* itr = reachableSites;
+	// loop over reachable sites and find site closest to destination that would not cause a cycle
+	while(itr != NULL){
+
+		// flag representing whether or not site itr is on the hoplst
+		int skip = 0;
+
+		for(struct hoplist* visited = m->hoplst; visited != NULL; visited = visited->next){
+			if(strcmp(itr->id, visited->id) == 0){
+				skip = 1;
+				break;
+			}
+		}
+
+		// if itr is on hoplst, sending message would cause cycle, skip and consider next site
+		if(skip == 1){
+			itr = itr->next;
+			continue;
+		}
+
+		// square of distance from itr to dest
+		int dist = (dest->xPos - itr->xPos)  * (dest->xPos - itr->xPos) + (dest->yPos - itr->yPos) * (dest->yPos - itr->yPos);
+
+		// update closest values
+		if(dist < closestDist){
+			closestSite = itr;
+			closestDist = dist;
+		}
+		// distance is equal, settle tie in lexicographical order
+		else if(dist == closestDist){
+			// sets closestSite to the site with the lexicographically smaller name, between itr and closestSite
+			closestSite = strcmp(itr->id, closestSite->id) < 0 ? itr : closestSite;
+		}
+
+		// move on to next site
+		itr = itr->next;
+
+	}
+
+	if(closestSite == NULL){
+		// TODO: change to proper print statement for message chosen not to send
+		printf("No closest site, not sending message\n");
+		return;
+	}
+
+	// mark next site to which message should be sent
+	if(m->nextID != NULL){
+		free(m->nextID);
+		m->nextID = NULL;
+	}
+	m->nextID = calloc(ID_LEN, sizeof(char));
+	strcpy(m->nextID, closestSite->id);
+	// add self to the hoplist
+	for(struct hoplist* l = m->hoplst; 1; l = l->next){
+		// just made message, hoplist uninitialized
+		if(l == NULL){
+			m->hoplst = calloc(1, sizeof(struct hoplist));
+			m->hoplst->id = calloc(ID_LEN, sizeof(char));
+			strcpy(m->hoplst->id, myID);
+		}
+		if(l->next == NULL){
+			l->next = calloc(1, sizeof(struct hoplist));
+			l->next->id = calloc(ID_LEN, sizeof(char));
+			strcpy(l->next->id, myID);
+		}
+	}
+	// increment hop length
+	m->hopLeng++;
+}
+
+void giveToBaseStation(struct baseStation* base, struct message* m){
+	// if this site is the destination
+	if(strcmp(m->destinationID, base->id) == 0){
+		// print that message was properly received
+		printf("%s: Message from %s to %s successfully received\n", base->id, m->originID, base->id);
+
+		// message has been delivered, free memory and return
+		free(m);
+
+		return;
+	}
+
+	// finds and sets next site in path for message m
+	setNextID(base->id, m, base->connectedLst);
+
+	struct baseStation* baseNext = NULL;
+
+	// find baseStation struct in baseStationList
+	for(int n = 0; n < MAX_BASE; n++){
+		// if base station initialized at index and name matches the next destination
+		if(globalBaseStationList[n].id && strcmp(globalBaseStationList[n].id, m->nextID) == 0){
+			// have the basestation receive message or hand it off to next recipient
+			baseNext = &globalBaseStationList[n];
+			giveToBaseStation(baseNext, m);
+
+			// message has been dealt with, return
+			return;
+		}
+	}
+
+	// if not baseStation, send to client
+	sendMsgOverSocket(m);
+
+
+
 }
 
 void* handleMessage(void* args){
@@ -326,8 +493,36 @@ void* handleMessage(void* args){
 
 	// if message is a datamessage
 	if(strcmp(m->messageType, DATA_MSG) == 0){
-		char* baseID = NULL;
-		giveToBaseStation(baseID, m);
+
+		// if server is destination
+		if(strcmp(m->destinationID, SERVER_ID) == 0){
+			printf("%s: Message from %s to %s successfully received\n", SERVER_ID, m->originID, SERVER_ID);
+			// message has been delivered, free memory and return
+			free(m);
+			free(cli);
+			return NULL;
+		}
+
+		struct baseStation* base = NULL;
+
+		// find baseStation struct in baseStationList
+		for(int n = 0; n < MAX_BASE; n++){
+			// if base station initialized at index and name matches the next destination
+			if(globalBaseStationList[n].id && strcmp(globalBaseStationList[n].id, m->nextID) == 0){
+				// have the basestation receive message or hand it off to next recipient
+				base = &globalBaseStationList[n];
+				giveToBaseStation(base, m);
+
+				// message has been dealt with, return
+				free(cli);
+				return NULL;
+			}
+		}
+
+		// sends message to appropriate client
+		sendMsgOverSocket(m);
+
+
 	}
 	else if(strcmp(m->messageType, WHERE_MSG) == 0){
 
@@ -401,7 +596,7 @@ int main(int argc, char * argv[]) {
 	}
 
 	// initialize a list of clients
-	struct client* clientList = calloc(BACKLOG, sizeof(struct client));
+	clientList = calloc(BACKLOG, sizeof(struct client));
 	// set each client's file descriptor to special value no client, meaning no client has connected
 	// in that index of the array
 	for(int n = 0; n < BACKLOG; n++){
