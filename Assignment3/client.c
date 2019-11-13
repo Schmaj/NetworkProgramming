@@ -30,6 +30,8 @@
 //max number of bytes to be read in
 #define MAX_REACHABLE 32
 
+#define MAX_SIZE 64
+
 // string literals for each command
 #define MOVE_CMD "MOVE"
 #define SEND_CMD "SENDDATA"
@@ -94,102 +96,6 @@ void freeMsg(struct message* m){
 	}
 
 	free(m);
-}
-
-// takes in message m, fills in nextID from reachableSites and destinationID, and sends appropriate message to server
-void sendDataMsg(char* myID, int sockfd, struct message* m, struct siteLst* reachableSites, struct siteLst* knownLocations){
-
-	// find destination location
-	while(knownLocations != NULL){
-		if(stcmp(m->destinationID, knownLocations->id) == 0){
-			struct siteLst* dest = knownLocations;
-			break;
-		}
-		knownLocations = knownLocations->next;
-	}
-
-	// closest to dest, ties alphabetically
-	struct siteLst* closestSite = NULL;
-	int closestDist = INT_MAX;
-
-	// pointer to walk through list of reachable sites
-	struct siteLst* itr = reachableSites;
-	// loop over reachable sites and find site closest to destination that would not cause a cycle
-	while(itr != NULL){
-
-		// flag representing whether or not site itr is on the hoplst
-		int skip = 0;
-
-		for(struct hoplst* visited = m->hoplst; visited != NULL; visited = visited->next){
-			if(strcmp(itr->id, visited->id) == 0){
-				skip = 1;
-				break;
-			}
-		}
-
-		// if itr is on hoplst, sending message would cause cycle, skip and consider next site
-		if(skip == 1){
-			itr = itr->next;
-			continue;
-		}
-
-		// square of distance from itr to dest
-		int dist = (dest->xPos - itr->xPos)  * (dest->xPos - itr->xPos) + (dest->yPos - itr->yPos) * (dest->yPos - itr->yPos);
-
-		// update closest values
-		if(dist < closestDist){
-			closestSite = itr;
-			closestDist = dist;
-		}
-		// distance is equal, settle tie in lexicographical order
-		else if(dist == closestDist){
-			// sets closestSite to the site with the lexicographically smaller name, between itr and closestSite
-			closestSite = strcmp(itr->id, closestSite->id) < 0 ? itr : closestSite;
-		}
-
-		// move on to next site
-		itr = itr->next;
-
-	}
-
-	if(closestSite == NULL){
-		printf("No closest site, not sending message\n");
-		return;
-	}
-
-	// mark next site to which message should be sent
-	if(m->nextID != NULL){
-		free(m->nextID);
-		m->nextID = NULL;
-	}
-	m->nextID = calloc(ID_LEN, sizeof(char));
-	strcpy(m->nextID, closestSite->id);
-	// add self to the hoplist
-	for(struct hoplist* l = m->hoplst; 1; l = l->next){
-		// just made message, hoplist uninitialized
-		if(l == NULL){
-			m->hoplst = calloc(1, sizeof(struct hoplist));
-			m->hoplst->id = calloc(ID_LEN, sizeof(char));
-			strcpy(m->hoplst->id, myID);
-		}
-		if(l->next == NULL){
-			l->next = calloc(1, sizeof(struct hoplist));
-			l->next->id = calloc(ID_LEN, sizeof(char));
-			strcpy(l->next->id, myID);
-		}
-	}
-	// increment hop length
-	m->hopLeng++;
-
-	char* msg = msgToStr(m);
-
-	// send message to server, add one byte for null terminator
-	write(sockfd, msg, strlen(msg) + 1);
-
-	free(msg);
-	msg = NULL;
-
-
 }
 
 /*
@@ -292,6 +198,110 @@ void freeLst(struct siteLst* lst){
 	free(lst);
 	return;
 }
+
+
+// takes in message m, fills in nextID from reachableSites and destinationID, and sends appropriate message to server
+void sendDataMsg(char* myID, int sockfd, struct message* m, struct siteLst* reachableSites, struct siteLst* knownLocations){
+
+	struct siteLst* dest = NULL;
+
+	// find destination location
+	while(knownLocations != NULL){
+		if(strcmp(m->destinationID, knownLocations->id) == 0){
+			dest = knownLocations;
+			break;
+		}
+		knownLocations = knownLocations->next;
+	}
+
+	if(dest == NULL){
+		printf("Do not know location of site %s\n", m->destinationID);
+	}
+
+	// closest to dest, ties alphabetically
+	struct siteLst* closestSite = NULL;
+	int closestDist = INT_MAX;
+
+	// pointer to walk through list of reachable sites
+	struct siteLst* itr = reachableSites;
+	// loop over reachable sites and find site closest to destination that would not cause a cycle
+	while(itr != NULL){
+
+		// flag representing whether or not site itr is on the hoplst
+		int skip = 0;
+
+		for(struct hoplist* visited = m->hoplst; visited != NULL; visited = visited->next){
+			if(strcmp(itr->id, visited->id) == 0){
+				skip = 1;
+				break;
+			}
+		}
+
+		// if itr is on hoplst, sending message would cause cycle, skip and consider next site
+		if(skip == 1){
+			itr = itr->next;
+			continue;
+		}
+
+		// square of distance from itr to dest
+		int dist = (dest->xPos - itr->xPos)  * (dest->xPos - itr->xPos) + (dest->yPos - itr->yPos) * (dest->yPos - itr->yPos);
+
+		// update closest values
+		if(dist < closestDist){
+			closestSite = itr;
+			closestDist = dist;
+		}
+		// distance is equal, settle tie in lexicographical order
+		else if(dist == closestDist){
+			// sets closestSite to the site with the lexicographically smaller name, between itr and closestSite
+			closestSite = strcmp(itr->id, closestSite->id) < 0 ? itr : closestSite;
+		}
+
+		// move on to next site
+		itr = itr->next;
+
+	}
+
+	if(closestSite == NULL){
+		printf("No closest site, not sending message\n");
+		return;
+	}
+
+	// mark next site to which message should be sent
+	if(m->nextID != NULL){
+		free(m->nextID);
+		m->nextID = NULL;
+	}
+	m->nextID = calloc(ID_LEN, sizeof(char));
+	strcpy(m->nextID, closestSite->id);
+	// add self to the hoplist
+	for(struct hoplist* l = m->hoplst; 1; l = l->next){
+		// just made message, hoplist uninitialized
+		if(l == NULL){
+			m->hoplst = calloc(1, sizeof(struct hoplist));
+			m->hoplst->id = calloc(ID_LEN, sizeof(char));
+			strcpy(m->hoplst->id, myID);
+		}
+		if(l->next == NULL){
+			l->next = calloc(1, sizeof(struct hoplist));
+			l->next->id = calloc(ID_LEN, sizeof(char));
+			strcpy(l->next->id, myID);
+		}
+	}
+	// increment hop length
+	m->hopLeng++;
+
+	char* msg = msgToStr(m);
+
+	// send message to server, add one byte for null terminator
+	write(sockfd, msg, strlen(msg) + 1);
+
+	free(msg);
+	msg = NULL;
+
+
+}
+
 
 // sends new position message to server and waits for REACHABLE response, reinitializing lst
 // returns pointer to new dynamically allocated linked list of siteLst
@@ -425,7 +435,7 @@ QUIT
 WHERE [SensorID/BaseID]
 
 */
-int interactWithConsole(char* myID, int sockfd, struct siteLst* reachableSites, struct siteLst* knownLocations){
+int interactWithConsole(char* sensorID, int sockfd, int SensorRange, struct siteLst* reachableSites, struct siteLst* knownLocations){
 
 	// buffer to hold command
 	char buf[CMD_SIZE];
@@ -466,21 +476,21 @@ int interactWithConsole(char* myID, int sockfd, struct siteLst* reachableSites, 
 		strcpy(m->messageType, DATA_MSG);
 
 		m->originID = calloc(ID_LEN, sizeof(char));
-		strcpy(m->originID, myID);
+		strcpy(m->originID, sensorID);
 
 		// nextID initially null, will be determined 
 		m->nextID = NULL;
 
 		// destination ID intialized to destination given by user
 		m->destinationID = calloc(ID_LEN, sizeof(char));
-		strcpy(destinationID, strtok(buf, " \0"));
+		strcpy(m->destinationID, strtok(buf, " \0"));
 
 		// hopleng and hoplist initially empty, will be updated to include self in sendDataMsg()
 		m->hopLeng = 0;
 		m->hoplst = NULL;
 
 		struct siteLst* knownLocations;
-		sendDataMsg(myID, sockfd, m, reachableSites, knownLocations);
+		sendDataMsg(sensorID, sockfd, m, reachableSites, knownLocations);
 
 		// TODO free message
 		freeMsg(m);
@@ -499,6 +509,8 @@ int interactWithConsole(char* myID, int sockfd, struct siteLst* reachableSites, 
 	else if(strcmp(command, WHERE_CMD) == 0){
 		
 	}
+
+	return 0;
 /*
 	char * cpy = calloc(strlen(msg)+1, sizeof(char));
 	strcpy(cpy, msg);
@@ -630,7 +642,7 @@ int main(int argc, char * argv[]) {
 
 		if(FD_ISSET(standardInput, &rfds)){
 			// TODO:
-			interactWithConsole(reachableSites, sensorID, SensorRange, sockfd);
+			interactWithConsole(sensorID, sockfd, SensorRange, reachableSites, NULL);
 		}
 
 		if(FD_ISSET(sockfd, &rfds)){
