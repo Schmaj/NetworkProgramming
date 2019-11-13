@@ -439,7 +439,8 @@ QUIT
 WHERE [SensorID/BaseID]
 
 */
-int interactWithConsole(char* sensorID, int sockfd, int SensorRange, struct siteLst* reachableSites, struct siteLst* knownLocations){
+int interactWithConsole(char* sensorID, int sockfd, int SensorRange, struct siteLst* reachableSites, struct siteLst* knownLocations, 
+				int xPos, int yPos){
 
 	// buffer to hold command
 	char buf[CMD_SIZE];
@@ -526,14 +527,7 @@ int interactWithConsole(char* sensorID, int sockfd, int SensorRange, struct site
 			perror("interactWithConsole, WHERE, read");
 			exit(EXIT_FAILURE);
 		}
-		/*
-		struct siteLst{
-		char* id;
-		struct siteLst* next;
-		int xPos;
-		int yPos;
-		};
-		*/
+
 		char* messageType = calloc(ID_LEN+1, sizeof(char));
 		strcpy(messageType, strtok(msg, " "));
 		if (strcmp(messageType, "THERE") != 0){
@@ -543,52 +537,69 @@ int interactWithConsole(char* sensorID, int sockfd, int SensorRange, struct site
 		free(messageType);
 
 		struct siteLst* thereSite = calloc(1, sizeof(struct siteLst));
+		thereSite->id = calloc(ID_LEN+1, sizeof(char));
+		strncpy(thereSite->id, strtok(NULL, " "), ID_LEN);
+		thereSite->xPos = atoi(strtok(NULL, " "));
+		thereSite->yPos = atoi(strtok(NULL, " "));
+		
+		free(msg);
+		free(whereID);
 
-	}
-
-	return 0;
-/*
-	char * cpy = calloc(strlen(msg)+1, sizeof(char));
-	strcpy(cpy, msg);
-
-	struct message* retMsg = calloc(1, sizeof(struct message));
-	retMsg->messageType = calloc(MAX_SIZE, sizeof(char));
-	strcpy(retMsg->messageType, strtok(cpy, " "));
-
-	if (strcmp(retMsg->messageType, "DATAMESSAGE") == 0){
-
-		retMsg->originID = calloc(MAX_SIZE, sizeof(char));
-		strcpy(retMsg->originID, strtok(NULL, " "));
-
-		retMsg->nextID = calloc(MAX_SIZE, sizeof(char));
-		strcpy(retMsg->nextID, strtok(NULL, " "));
-
-		retMsg->destinationID = calloc(MAX_SIZE, sizeof(char));
-		strcpy(retMsg->destinationID, strtok(NULL, " "));
-
-		retMsg->hopLeng = atoi(strtok(NULL, " "));
-
-		retMsg->hoplst = calloc(1, sizeof(struct message));
-		struct hoplist* iterator = retMsg->hoplst;
-
-		for (unsigned int i = 0; i < retMsg->hopLeng; ++i){
-			iterator->id = strtok(NULL, " ");
-			if (i == retMsg->hopLeng-1){
-				iterator->next = NULL;
+		struct siteLst* iterator = reachableSites;
+		//reachable
+		if (pow(xPos - thereSite->xPos, 2) + pow(yPos - thereSite->yPos, 2) <= pow(SensorRange, 2)){
+			if (!iterator){
+				reachableSites = calloc(1, sizeof(struct siteLst));
+				reachableSites->id = calloc(strlen(thereSite->id)+1, sizeof(char));
+				strcpy(reachableSites->id, thereSite->id);
+				reachableSites->xPos = thereSite->xPos;
+				reachableSites->yPos = thereSite->yPos;
 			} else {
-				iterator->next = calloc(1, sizeof(struct hoplist));
-				iterator = iterator->next;
+				while(iterator->next && strcmp(iterator->id, thereSite->id) != 0){
+					iterator = iterator->next;
+				}
+				if (strcmp(iterator->id, thereSite->id) != 0){ //change position
+					iterator->xPos = thereSite->xPos;
+					iterator->yPos = thereSite->yPos;
+				} else { //have to add it to the end
+					iterator->next = calloc(1, sizeof(struct siteLst));
+					iterator = iterator->next;
+					iterator->id = calloc(strlen(thereSite->id)+1, sizeof(char));
+					strcpy(iterator->id, thereSite->id);
+					iterator->xPos = thereSite->xPos;
+					iterator->yPos = thereSite->yPos;
+				}
 			}
 		}
 
-		free(cpy);
-	} else {
-		free(cpy);
+		iterator = knownLocations;
+		if (!iterator){
+			knownLocations = calloc(1, sizeof(struct siteLst));
+			knownLocations->id = calloc(strlen(thereSite->id)+1, sizeof(char));
+			strcpy(knownLocations->id, thereSite->id);
+			knownLocations->xPos = thereSite->xPos;
+			knownLocations->yPos = thereSite->yPos;
+		} else {
+			while (iterator->next && strcmp(iterator->id, thereSite->id) != 0){
+				iterator = iterator->next;
+			}
+			if (strcmp(iterator->id, thereSite->id) != 0){ //change position
+				iterator->xPos = thereSite->xPos;
+				iterator->yPos = thereSite->yPos;
+			} else { //have to add it to the end
+				iterator->next = calloc(1, sizeof(struct siteLst));
+				iterator = iterator->next;
+				iterator->id = calloc(strlen(thereSite->id)+1, sizeof(char));
+				strcpy(iterator->id, thereSite->id);
+				iterator->xPos = thereSite->xPos;
+				iterator->yPos = thereSite->yPos;
+			}
+		}
+		free(thereSite->id);
+		free(thereSite);
 	}
-	return retMsg;
-	*/
 
-
+	return 0;
 
 }
 
@@ -737,7 +748,7 @@ int main(int argc, char * argv[]) {
 
 		if(FD_ISSET(standardInput, &rfds)){
 			
-			int quit = interactWithConsole(sensorID, sockfd, SensorRange, reachableSites, knownLocations);
+			int quit = interactWithConsole(sensorID, sockfd, SensorRange, reachableSites, knownLocations, xPos, yPos);
 
 			// quit command received, release memory and close sockets
 			if(quit == 1){
