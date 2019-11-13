@@ -574,7 +574,18 @@ int interactWithConsole(/*don't know what we need yet*/){
 		if (strcmp(m->originID, CONTROL) == 0){
 			handleMessage(NULL);
 		} else { //base station
-			giveToBaseStation(m->originID, m);
+			struct baseStation* base = NULL;
+
+			// find baseStation struct in baseStationList
+			for(int n = 0; n < MAX_BASE; n++){
+				// if base station initialized at index and name matches the next destination
+				if(globalBaseStationList[n].id && strcmp(globalBaseStationList[n].id, m->originID) == 0){
+					// have the basestation receive message or hand it off to next recipient
+					base = &globalBaseStationList[n];
+					break;
+				}
+			}
+			giveToBaseStation(base, m);
 		}
 
 		// TODO free message
