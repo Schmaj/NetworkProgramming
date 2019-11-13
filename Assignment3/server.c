@@ -21,7 +21,7 @@ struct hoplist;
 char* msgToStr(struct message* msg, char* thisID);
 struct baseStation;
 struct siteLst;
-void updateSiteLst(struct message* msg);
+void updateSiteLst(char* sensorID, int xPosition, int yPosition);
 
 struct siteLst* globalSiteList;
 
@@ -102,12 +102,19 @@ Ret: void
 Arg: msg is the message received. if msg->messageType == "Update Position", 
 		update globalSiteList
 */
-void updateSiteLst(char* sensorID, int SensorRange, int xPos, int yPos){ // call that for everybody
+void updateSiteLst(char* sensorID, int xPosition, int yPosition){ // call that for everybody
 	struct siteLst* iterator = globalSiteList;
 	while(iterator != NULL){
 		iterator = iterator->next;
 	}
-	iterator->next = calloc(1, sizeof(struct ))
+	iterator->next = calloc(1, sizeof(struct siteLst));
+	iterator = iterator->next;
+	iterator->id = calloc(strlen(sensorID)+1, sizeof(char));
+	strcpy(iterator->id, sensorID);
+	iterator->xPos = xPosition;
+	iterator->yPos = yPosition;
+	iterator->next = NULL;		//just to be sure lol
+	iterator = NULL;
 	return;
 }
 /*
