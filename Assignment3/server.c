@@ -333,7 +333,7 @@ void sendMsgOverSocket(struct message* m){
 		perror("write() failed\n");
 	}
 
-	free(m);
+	freeMsg(m);
 
 
 }
@@ -441,7 +441,7 @@ void giveToBaseStation(struct baseStation* base, struct message* m){
 		printf("%s: Message from %s to %s successfully received\n", base->id, m->originID, base->id);
 
 		// message has been delivered, free memory and return
-		free(m);
+		freeMsg(m);
 
 		return;
 	}
@@ -486,11 +486,30 @@ void* handleMessage(void* args){
 
 	// client has disconnected
 	if(bytes == 0){
-		// TODO: handle disconnected client
 		// need to remove client from clients list
+
+		for(int n = 0; n < MAX_CLIENTS; n++){
+			if(cli->fd == clientList[n].fd){
+				// set all fields to values representing no client
+				clientList[n].fd = NO_CLIENT;
+				clientList[n].site = NULL;
+				break;
+			}
+		}
+
+		clientList[n].fd = NO_CLIENT;
+
+		free(buf);
+		free(cli);
+
+		return NULL;
 	}
 
+	// create message struct from string buffer
 	struct message* m = parseMsg(buf, bytes);
+
+	// free string buffer
+	free(buf);
 
 	// if message is a datamessage
 	if(strcmp(m->messageType, DATA_MSG) == 0){
@@ -499,7 +518,7 @@ void* handleMessage(void* args){
 		if(strcmp(m->destinationID, SERVER_ID) == 0){
 			printf("%s: Message from %s to %s successfully received\n", SERVER_ID, m->originID, SERVER_ID);
 			// message has been delivered, free memory and return
-			free(m);
+			freeMsg(m);
 			free(cli);
 			return NULL;
 		}
@@ -529,6 +548,7 @@ void* handleMessage(void* args){
 
 	}
 	else if(strcmp(m->messageType, UPDATE_MSG) == 0){
+		// TODO: set site pointer in client struct
 
 	}
 
@@ -588,7 +608,7 @@ int interactWithConsole(){
 			giveToBaseStation(base, m);
 		}
 
-		// TODO free message
+		// free message
 		freeMsg(m);
 
 		return 0;
@@ -696,10 +716,10 @@ int main(int argc, char * argv[]) {
 	}
 
 	// initialize a list of clients
-	clientList = calloc(BACKLOG, sizeof(struct client));
+	clientList = calloc(MAX_CLIENTS, sizeof(struct client));
 	// set each client's file descriptor to special value no client, meaning no client has connected
 	// in that index of the array
-	for(int n = 0; n < BACKLOG; n++){
+	for(int n = 0; n < MAX_CLIENTS; n++){
 		clientList[n].fd = NO_CLIENT;
 		clientList[n].site = NULL;
 	}
@@ -726,7 +746,7 @@ int main(int argc, char * argv[]) {
 		FD_SET(listenerFd, &rfds);
 
 		// loop over connected clients and add to fdset
-		for(int n = 0; n < BACKLOG; n++){
+		for(int n = 0; n < MAX_CLIENTS; n++){
 			// if a client has connected at this index
 			if(clientList[n].fd != NO_CLIENT){
 				// add that client's file descriptor to our fdset
@@ -761,16 +781,59 @@ int main(int argc, char * argv[]) {
 
 			if(quit == 1){
 				// TODO: clean up resources, wait for threads to finish, kill
+
+				for(int n = 0; n < MAX_CLIENTS; n++){
+
+					// allow all threads to finish and join them
+					if(clientList[n].tid != NO_THREAD){
+						pthread_join(clientList[n].tid, NULL);
+						clientList[n].tid = NO_THREAD;
+					}
+					// disconnect from clients and close sockets
+					if(clientList[n].fd != NO_CLIENT){
+						close(clientList[n].fd);
+						clientList[n].fd = NO_CLIENT;
+					}
+				}
+
+				free(clientList);
 			}
 		}
 		// new client connecting
 		if(FD_ISSET(listenerFd, &rfds)){
-			// TODO: accept connection
+
+			int index = -1;
+			// loop over client list and find next available index
+			for(int n = 0; n < MAX_CLIENTS; n++){
+				if(clientList[n].fd != NO_CLIENT){
+					index = n;
+					break;
+				}
+			}
+
+			// if no more spaces available, print error
+			if(index == -1){
+				perror("ERROR: max clients already connected\n");
+				return EXIT_FAILURE;
+			}
+
+			// accept connection and fill in client list
+			clientList[index].fd = accept(listenerFd, NULL, NULL);
+			clientList[index].tid = NO_THREAD;
+			clientList[index].site = NULL;
 		}
 		// loop over connected clients looking for message
-		for(int n = 0; n < BACKLOG; n++){
+		for(int n = 0; n < MAX_CLIENTS; n++){
+			// if client has disconnected, join final thread for that client
+			if(clientList[n].fd == NO_CLIENT && clientList[n].tid != NO_THREAD){
+				if(pthread_join(clientList[n].tid, NULL) != 0){
+						perror("ERROR joining thread\n");
+						return EXIT_FAILURE;
+					}
+					// after joining, set tid back to NO_THREAD
+					clientList[n].tid = NO_THREAD;
+			}
 			if(FD_ISSET(clientList[n].fd, &rfds)){
-				// TODO: figure out what you want to do with disconnected clients
 
 				// if a thread was previously created for this client, wait for that thread to finish
 				//  and join the thread before creating a new thread
