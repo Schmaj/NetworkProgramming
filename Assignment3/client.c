@@ -459,11 +459,11 @@ int interactWithConsole(char* sensorID, int sockfd, int SensorRange, struct site
 		char pos[INT_LEN];
 		// 0 out buffer and copy xposition
 		memset(pos, '\0', INT_LEN);
-		strcpy(pos, strtok(buf, " "));
+		strcpy(pos, strtok(NULL, " "));
 		int xPos = atoi(pos);
 		// 0 out buffer and copy yposition
 		memset(pos, '\0', INT_LEN);
-		strcpy(pos, strtok(buf, " \0"));
+		strcpy(pos, strtok(NULL, " \0"));
 		int yPos = atoi(pos);
 
 		// update position and send message to server

@@ -50,6 +50,7 @@
 #define SEND_CMD "SENDDATA"
 #define QUIT_CMD "QUIT"
 #define CONTROL "CONTROL"
+#define REACHABLE_MSG "REACHABLE"
 
 #define SERVER_ID "CONTROL"
 
@@ -63,7 +64,7 @@ struct baseStation;
 struct siteLst;
 void updateSiteLst(char* sensorID, int xPosition, int yPosition);
 
-struct siteLst* globalSiteList;
+struct siteLst* globalSiteList; // size MAX_BASE + MAX_CLIENTS
 struct baseStation* globalBaseStationList; //10
 struct client* clientList;
 
@@ -471,6 +472,116 @@ void giveToBaseStation(struct baseStation* base, struct message* m){
 
 }
 
+// if this id is a basestation return its index, else return -1
+int isBaseStation(char* id){
+	for(int n = 0; n < MAX_BASE; n++){
+		if(strcmp(id, globalBaseStationList[n].id) == 0){
+			return n;
+		}
+	}
+	return -1;
+}
+
+// create string for response to client
+// response includes list of all sites that are reachable by that client 
+// message in form: REACHABLE [NumReachable] [ReachableList]
+//		where ReachableList is space delimited list of form: [ID] [XPosition] [YPosition]
+//
+// also goes through each baseStation and removes or adds this to that baseStations connectedList, as appropriate
+// returns dynamically allocated string ready to be sent over socket
+char* getReachableList(char* id, int x, int y, int range){
+
+	// square range because we are dealing with squared distance
+	range = range * range;
+
+	// TODO: change this value to a real estimate
+	int estimate = 10;
+
+	// allocate memory
+	char* reachList = calloc(estimate, sizeof(char));
+
+	// message begins with "REACHABLE "
+	strcat(reachList, REACHABLE_MSG);
+	strcat(reachList, " ");
+
+	// iterate over every site we know about
+	for(struct siteLst* itr = globalSiteList; itr != NULL; itr = itr->next){
+		// do not consider adding this site to its own reachable list
+		if(strcmp(id, itr->id) == 0){
+			continue;
+		}
+
+		// find the square of distance between the two sites
+		int dist = (x - itr->xPos)  * (x - itr->xPos) + (y - itr->yPos) * (y - itr->yPos);
+
+		// if this site is reachable
+		if(dist <= range){
+			// add element to reachList, each entry is of form [ID] [XPosition] [YPosition]
+			char entry[ID_LEN + 2*INT_LEN + 3];
+			sprintf(entry, "%s %d %d ", itr->id, itr->xPos, itr->yPos);
+			strcat(reachList, entry);
+		}
+
+		int base = isBaseStation(itr->id);
+		if(base != -1){
+			struct siteLst* connectedItr = globalBaseStationList[base];
+			struct siteLst* prev = NULL;
+			while(1){
+
+				// if this site is already in connected list
+				if(strcmp(id, connectedItr->id) == 0){
+					// if in range
+					if(dist <= range){
+						// update x and y position
+						connectedItr->xPos = x;
+						connectedItr->yPos = y;
+					}
+					else{
+						// if this site is head of list, move head to next site
+						if(prev == NULL){
+							globalBaseStationList[base] = connectedItr->next;
+						}
+						// otherwise update previous entry to point past this, removing it from the list
+						else{
+							prev->next = connectedItr->next;
+						}
+
+						// free memory
+						free(connectedItr->id);
+						free(connectedItr);
+
+					}
+
+					// done with loop
+					break;
+				}
+
+				// if we have gone through whole list without finding, add to list if relevent
+				if(connectedItr->next == NULL){
+					// if we should add
+					if(dist <= range){
+						// add new site
+						connectedItr->next = calloc(1, sizeof(siteLst));
+						connectedItr->next->id = calloc(ID_LEN, sizeof(char));
+						strcpy(connectedItr->next->id, id);
+						connectedItr->next->xPos = x;
+						connectedItr->next->yPos = y;
+					}
+
+					break;
+				}
+
+				prev = connectedItr;
+				connectedItr = connectedItr->next;
+
+				// TODO: look at this, leaving in hurry, probably not done
+
+			}
+		}
+	}
+
+}
+
 void* handleMessage(void* args){
 	struct client* cli = (struct client*)args;
 
@@ -508,8 +619,6 @@ void* handleMessage(void* args){
 	// create message struct from string buffer
 	struct message* m = parseMsg(buf, bytes);
 
-	// free string buffer
-	free(buf);
 
 	// if message is a datamessage
 	if(strcmp(m->messageType, DATA_MSG) == 0){
@@ -520,6 +629,7 @@ void* handleMessage(void* args){
 			// message has been delivered, free memory and return
 			freeMsg(m);
 			free(cli);
+			free(buf);
 			return NULL;
 		}
 
@@ -535,6 +645,7 @@ void* handleMessage(void* args){
 
 				// message has been dealt with, return
 				free(cli);
+				free(buf);
 				return NULL;
 			}
 		}
@@ -550,11 +661,74 @@ void* handleMessage(void* args){
 	else if(strcmp(m->messageType, UPDATE_MSG) == 0){
 		// TODO: set site pointer in client struct
 
+		//"UPDATEPOSITION %s %d %d %d ", sensorID, SensorRange, xPos, yPos
+		// move pointer of strtok past "UPDATEPOSITION" in our buffer
+		strtok(buf, " ");
+
+		char* newId = calloc(ID_LEN, sizeof(char));
+
+		// copy id from message into newId
+		strcpy(newId, strtok(NULL, " "));
+
+		struct siteLst* updateSite = globalSiteList;
+
+		// search through existing sites to determine if this is a new site or an update
+		// if new site, create new struct siteLst for it
+		// upon exiting this loop, updateSite will point to the site of this client
+		while(1){
+
+			// if this site already exists, break
+			if(strcmp(updateSite->id, newId) == 0){
+				break;
+			}
+			// if there is no next site, this site does not exist yet, create it
+			if(updateSite->next == NULL){
+				
+				// allocate memory for site and site id, and copy over new id
+				updateSite->next = calloc(1, sizeof(struct siteLst));
+				updateSite->next->id = calloc(ID_LEN, sizeof(char));
+				strcpy(updateSite->next->id, newId);
+
+				// set field in appropriate client to point to this new site
+				for(int n = 0; n < MAX_CLIENTS; n++){
+					if(cli->fd == clientList[n].fd){
+						clientList[n].site = updateSite->next;
+						break;
+					}
+				}
+
+				// set updateSite and break
+				updateSite = updateSite->next;
+				break;
+			}
+		}
+
+		// get range from message
+		int range = atoi(strtok(NULL, " "));
+
+		// update xPos and yPos fields in our globalSiteList
+		int newX = atoi(strtok(NULL, " "));
+		int newY = atoi(strtok(NULL, " "));
+
+		updateSite->xPos = newX;
+		updateSite->yPos = newY;
+
+		// create string for response to client
+		// response includes list of all sites that are reachable by that client 
+		// message in form: REACHABLE [NumReachable] [ReachableList]
+		//		where ReachableList is space delimited list of form: [ID] [XPosition] [YPosition]
+		char* response = getReachableList(updateSite->id, newX, newY, range);
+
+		write(cli->fd, response, strlen(response));
+
+		free(response);
+
+
 	}
 
 
 	free(cli);
-
+	free(buf);
 	return NULL;
 }
 
