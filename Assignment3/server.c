@@ -656,7 +656,36 @@ void* handleMessage(void* args){
 
 	}
 	else if(strcmp(m->messageType, WHERE_MSG) == 0){
-
+		//MAY HAVE TO PUT THIS INTO A FUNCTION
+		char* NodeID = calloc(ID_LEN+1, sizeof(char));
+		strncpy(NodeID, strtok(buf, " "),ID_LEN+1);
+		if (strcmp(NodeID, "WHERE") == 0){
+			memset(NodeID, 0, ID_LEN+1);
+			strncpy(NodeID, strtok(NULL, " "), ID_LEN);
+		}
+		int XPosition = -1, YPosition = -1;
+		struct siteLst* itr = globalSiteList;
+		while(itr){
+			if (strcmp(itr->id, NodeID) == 0){
+				XPosition = itr->xPos;
+				YPosition = itr->yPos;
+				break;
+			}
+			itr = itr->next;
+		}
+		if (XPosition == -1 || YPosition == -1){
+			perror("WHERE_MSG, Position");
+			exit(EXIT_FAILURE);
+		}
+		char* msgOut = calloc(ID_LEN*2 + 1, sizeof(char));
+		sprintf(msgOut, "THERE %s %d %d ", NodeID, XPosition, YPosition);
+		free(NodeID);
+		int retno = write(cli->fd, msgOut, ID_LEN*2 + 1);
+		if (retno <= 0){
+			perror("WHERE, write");
+			exit(EXIT_FAILURE);
+		}
+		free(msgOut);
 	}
 	else if(strcmp(m->messageType, UPDATE_MSG) == 0){
 		// TODO: set site pointer in client struct
