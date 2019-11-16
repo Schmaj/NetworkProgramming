@@ -205,18 +205,7 @@ void freeLst(struct siteLst* lst){
 
 // takes in message m, fills in nextID from reachableSites and destinationID, and sends appropriate message to server
 // adds self to hoplist at the end of this function
-void sendDataMsg(char* myID, int sockfd, struct message* m, struct siteLst* reachableSites, struct siteLst* knownLocations){
-
-	struct siteLst* dest = NULL;
-
-	// find destination location
-	while(knownLocations != NULL){
-		if(strcmp(m->destinationID, knownLocations->id) == 0){
-			dest = knownLocations;
-			break;
-		}
-		knownLocations = knownLocations->next;
-	}
+void sendDataMsg(char* myID, int sockfd, struct message* m, struct siteLst* reachableSites, struct siteLst* dest){
 
 	if(dest == NULL){
 		printf("Do not know location of site %s\n", m->destinationID);
@@ -442,7 +431,9 @@ int connectToServer(int sockfd, char* controlAddress, int controlPort){
 
 }
 
-void where(int sockfd, struct siteLst* reachableSites, int xPos, int yPos, int SensorRange, struct siteLst* knownLocations){
+
+// returns dynamically allocated thereSite, siteLst of the requested site
+struct siteLst* where(int sockfd, struct siteLst* reachableSites, int xPos, int yPos, int SensorRange){
 	char* whereID = calloc(ID_LEN+1, sizeof(char));
 	strncpy(whereID, strtok(NULL, "\n"), ID_LEN);
 	char* msg = calloc(2*ID_LEN + 1, sizeof(char));
@@ -503,31 +494,7 @@ void where(int sockfd, struct siteLst* reachableSites, int xPos, int yPos, int S
 		}
 	}
 
-	iterator = knownLocations;
-	if (!iterator){
-		knownLocations = calloc(1, sizeof(struct siteLst));
-		knownLocations->id = calloc(strlen(thereSite->id)+1, sizeof(char));
-		strcpy(knownLocations->id, thereSite->id);
-		knownLocations->xPos = thereSite->xPos;
-		knownLocations->yPos = thereSite->yPos;
-	} else {
-		while (iterator->next && strcmp(iterator->id, thereSite->id) != 0){
-			iterator = iterator->next;
-		}
-		if (strcmp(iterator->id, thereSite->id) != 0){ //change position
-			iterator->xPos = thereSite->xPos;
-			iterator->yPos = thereSite->yPos;
-		} else { //have to add it to the end
-			iterator->next = calloc(1, sizeof(struct siteLst));
-			iterator = iterator->next;
-			iterator->id = calloc(strlen(thereSite->id)+1, sizeof(char));
-			strcpy(iterator->id, thereSite->id);
-			iterator->xPos = thereSite->xPos;
-			iterator->yPos = thereSite->yPos;
-		}
-	}
-	free(thereSite->id);
-	free(thereSite);
+	return thereSite;
 }
 
 // takes in command from stdin and executes user command
@@ -560,14 +527,14 @@ int interactWithConsole(char* sensorID, int sockfd, int SensorRange, struct site
 		// 0 out buffer and copy xposition
 		memset(pos, '\0', INT_LEN);
 		strcpy(pos, strtok(NULL, " "));
-		int xPos = atoi(pos);
+		int newxPos = atoi(pos);
 		// 0 out buffer and copy yposition
 		memset(pos, '\0', INT_LEN);
 		strcpy(pos, strtok(NULL, " \0"));
-		int yPos = atoi(pos);
+		int newyPos = atoi(pos);
 
 		// update position and send message to server
-		updatePosition(reachableSites, sensorID, SensorRange,xPos, yPos, sockfd);
+		updatePosition(reachableSites, sensorID, SensorRange, newxPos, newyPos, sockfd);
 
 		return 0;
 
@@ -595,8 +562,13 @@ int interactWithConsole(char* sensorID, int sockfd, int SensorRange, struct site
 		m->hopLeng = 0;
 		m->hoplst = NULL;
 
-		struct siteLst* knownLocations;
-		sendDataMsg(sensorID, sockfd, m, reachableSites, knownLocations);
+		// update position ot get up to date reachable list
+		updatePosition(reachableSites, sensorID, SensorRange, xPos, yPos, sockfd);
+		struct siteLst* dest = where(sockfd, reachableSites, xPos, yPos, SensorRange);
+
+		sendDataMsg(sensorID, sockfd, m, reachableSites, dest);
+
+		free(dest);
 
 		// TODO free message
 		freeMsg(m);
@@ -613,7 +585,7 @@ int interactWithConsole(char* sensorID, int sockfd, int SensorRange, struct site
 	}
 	// WHERE [SensorID/BaseID]
 	else if(strcmp(command, WHERE_CMD) == 0){
-		where(sockfd, reachableSites, xPos, yPos, SensorRange, knownLocations);
+		where(sockfd, reachableSites, xPos, yPos, SensorRange);
 	}
 
 	return 0;
