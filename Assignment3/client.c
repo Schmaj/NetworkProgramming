@@ -329,7 +329,7 @@ struct siteLst* updatePosition(struct siteLst* lst, char* sensorID, int SensorRa
 	}
 	free(msg);
 	msg = calloc(MAX_REACHABLE*ID_LEN + 20, sizeof(char));
-	retno = read(fd, msg, MAX_REACHABLE*ID_LEN + 21);
+	retno = read(fd, msg, MAX_REACHABLE*ID_LEN + 19);
 	if (retno <= 0){
 		perror("updatePosition, read");
 		exit(EXIT_FAILURE);
