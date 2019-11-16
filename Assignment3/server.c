@@ -872,6 +872,8 @@ int recvMsg(int sockfd, char* myID, struct siteLst* reachableSites, struct siteL
 
 
 int main(int argc, char * argv[]) {
+
+	setvbuf(stdout, NULL, _IONBF, 0);
 	
 	// check for correct number of arguments
 	if(argc != 3){
@@ -935,6 +937,7 @@ int main(int argc, char * argv[]) {
 	// in that index of the array
 	for(int n = 0; n < MAX_CLIENTS; n++){
 		clientList[n].fd = NO_CLIENT;
+		clientList[n].tid = NO_THREAD;
 		clientList[n].site = NULL;
 	}
 
@@ -976,7 +979,7 @@ int main(int argc, char * argv[]) {
 		timeout.tv_usec = 0;
 
 		// wait for activity on listening socket, or any active client
-		int retval = select(maxFd, &rfds, NULL, NULL, &timeout);
+		int retval = select(maxFd + 1, &rfds, NULL, NULL, &timeout);
 
 		if(retval == 0){
 			printf("No Activity\n");
@@ -1019,7 +1022,7 @@ int main(int argc, char * argv[]) {
 			int index = -1;
 			// loop over client list and find next available index
 			for(int n = 0; n < MAX_CLIENTS; n++){
-				if(clientList[n].fd != NO_CLIENT){
+				if(clientList[n].fd == NO_CLIENT){
 					index = n;
 					break;
 				}
