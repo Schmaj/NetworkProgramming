@@ -723,14 +723,10 @@ void* handleMessage(void* args){
 		// move pointer of strtok past "UPDATEPOSITION" in our buffer
 		strtok(buf, " \n\0");
 
-		printf("Hit 1\n");
-
 		char* newId = calloc(ID_LEN, sizeof(char));
 
 		// copy id from message into newId
 		strcpy(newId, strtok(NULL, " "));
-
-		printf("Hit 2\n");
 
 		struct siteLst* updateSite = globalSiteList;
 
@@ -744,8 +740,6 @@ void* handleMessage(void* args){
 		// upon exiting this loop, updateSite will point to the site of this client
 		while(1){
 
-			printf("Hit 3\n");
-
 			if(updateSite->id == NULL){
 				printf("NULL id\n");
 				return 0;
@@ -756,8 +750,6 @@ void* handleMessage(void* args){
 				break;
 			}
 
-			printf("Hit 4\n");
-
 			// if there is no next site, this site does not exist yet, create it
 			if(updateSite->next == NULL){
 				
@@ -766,8 +758,6 @@ void* handleMessage(void* args){
 				updateSite->next->id = calloc(ID_LEN, sizeof(char));
 				strcpy(updateSite->next->id, newId);
 
-				printf("Hit 5\n");
-
 				// set field in appropriate client to point to this new site
 				for(int n = 0; n < MAX_CLIENTS; n++){
 					if(cli->fd == clientList[n].fd){
@@ -775,19 +765,13 @@ void* handleMessage(void* args){
 						break;
 					}
 				}
-
-				printf("Hit 6\n");
 				// set updateSite and break
 				updateSite = updateSite->next;
 				break;
 			}
 
-			printf("Hit 7\n");
-
 			updateSite = updateSite->next;
 		}
-
-		printf("Hit 8\n");
 
 		// get range from message
 		int range = atoi(strtok(NULL, " \n\0"));
@@ -799,15 +783,11 @@ void* handleMessage(void* args){
 		updateSite->xPos = newX;
 		updateSite->yPos = newY;
 
-		printf("Hit 9\n");
-
 		// create string for response to client
 		// response includes list of all sites that are reachable by that client 
 		// message in form: REACHABLE [NumReachable] [ReachableList]
 		//		where ReachableList is space delimited list of form: [ID] [XPosition] [YPosition]
 		char* response = getReachableList(updateSite->id, newX, newY, range);
-
-		printf("Hit 10\n");
 
 		write(cli->fd, response, strlen(response));
 
@@ -1107,7 +1087,7 @@ int main(int argc, char * argv[]) {
 					// after joining, set tid back to NO_THREAD
 					clientList[n].tid = NO_THREAD;
 			}
-			if(FD_ISSET(clientList[n].fd, &rfds)){
+			if(clientList[n].fd != NO_CLIENT && FD_ISSET(clientList[n].fd, &rfds)){
 
 				// if a thread was previously created for this client, wait for that thread to finish
 				//  and join the thread before creating a new thread

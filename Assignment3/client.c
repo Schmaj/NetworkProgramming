@@ -443,6 +443,94 @@ int connectToServer(int sockfd, char* controlAddress, int controlPort){
 
 }
 
+void where(int sockfd, struct siteLst* reachableSites, int xPos, int yPos, int SensorRange, struct siteLst* knownLocations){
+	char* whereID = calloc(ID_LEN+1, sizeof(char));
+	strncpy(whereID, strtok(NULL, "\n"), ID_LEN);
+	char* msg = calloc(2*ID_LEN + 1, sizeof(char));
+	sprintf(msg, "WHERE %s ", whereID);
+	int retno = write(sockfd, msg, 2*ID_LEN);
+	if (retno <= 0){
+		perror("interactWithConsole, WHERE, write");
+		exit(EXIT_FAILURE);
+	}
+	memset(msg, 0, 2*ID_LEN + 1);
+	retno = read(sockfd, msg, 2*ID_LEN);
+	if (retno <= 0){
+		perror("interactWithConsole, WHERE, read");
+		exit(EXIT_FAILURE);
+	}
+
+	char* messageType = calloc(ID_LEN+1, sizeof(char));
+	strcpy(messageType, strtok(msg, " "));
+	if (strcmp(messageType, "THERE") != 0){
+		perror("interactWithConsole, WHERE, messageType");
+		exit(EXIT_FAILURE);
+	}
+	free(messageType);
+
+	struct siteLst* thereSite = calloc(1, sizeof(struct siteLst));
+	thereSite->id = calloc(ID_LEN+1, sizeof(char));
+	strncpy(thereSite->id, strtok(NULL, " "), ID_LEN);
+	thereSite->xPos = atoi(strtok(NULL, " "));
+	thereSite->yPos = atoi(strtok(NULL, " "));
+	
+	free(msg);
+	free(whereID);
+
+	struct siteLst* iterator = reachableSites;
+	//reachable
+	if (pow(xPos - thereSite->xPos, 2) + pow(yPos - thereSite->yPos, 2) <= pow(SensorRange, 2)){
+		if (!iterator){
+			reachableSites = calloc(1, sizeof(struct siteLst));
+			reachableSites->id = calloc(strlen(thereSite->id)+1, sizeof(char));
+			strcpy(reachableSites->id, thereSite->id);
+			reachableSites->xPos = thereSite->xPos;
+			reachableSites->yPos = thereSite->yPos;
+		} else {
+			while(iterator->next && strcmp(iterator->id, thereSite->id) != 0){
+				iterator = iterator->next;
+			}
+			if (strcmp(iterator->id, thereSite->id) != 0){ //change position
+				iterator->xPos = thereSite->xPos;
+				iterator->yPos = thereSite->yPos;
+			} else { //have to add it to the end
+				iterator->next = calloc(1, sizeof(struct siteLst));
+				iterator = iterator->next;
+				iterator->id = calloc(strlen(thereSite->id)+1, sizeof(char));
+				strcpy(iterator->id, thereSite->id);
+				iterator->xPos = thereSite->xPos;
+				iterator->yPos = thereSite->yPos;
+			}
+		}
+	}
+
+	iterator = knownLocations;
+	if (!iterator){
+		knownLocations = calloc(1, sizeof(struct siteLst));
+		knownLocations->id = calloc(strlen(thereSite->id)+1, sizeof(char));
+		strcpy(knownLocations->id, thereSite->id);
+		knownLocations->xPos = thereSite->xPos;
+		knownLocations->yPos = thereSite->yPos;
+	} else {
+		while (iterator->next && strcmp(iterator->id, thereSite->id) != 0){
+			iterator = iterator->next;
+		}
+		if (strcmp(iterator->id, thereSite->id) != 0){ //change position
+			iterator->xPos = thereSite->xPos;
+			iterator->yPos = thereSite->yPos;
+		} else { //have to add it to the end
+			iterator->next = calloc(1, sizeof(struct siteLst));
+			iterator = iterator->next;
+			iterator->id = calloc(strlen(thereSite->id)+1, sizeof(char));
+			strcpy(iterator->id, thereSite->id);
+			iterator->xPos = thereSite->xPos;
+			iterator->yPos = thereSite->yPos;
+		}
+	}
+	free(thereSite->id);
+	free(thereSite);
+}
+
 // takes in command from stdin and executes user command
 
 /* Commands include:
@@ -526,91 +614,7 @@ int interactWithConsole(char* sensorID, int sockfd, int SensorRange, struct site
 	}
 	// WHERE [SensorID/BaseID]
 	else if(strcmp(command, WHERE_CMD) == 0){
-		char* whereID = calloc(ID_LEN+1, sizeof(char));
-		strncpy(whereID, strtok(NULL, "\n"), ID_LEN);
-		char* msg = calloc(2*ID_LEN + 1, sizeof(char));
-		sprintf(msg, "WHERE %s ", whereID);
-		int retno = write(sockfd, msg, 2*ID_LEN);
-		if (retno <= 0){
-			perror("interactWithConsole, WHERE, write");
-			exit(EXIT_FAILURE);
-		}
-		memset(msg, 0, 2*ID_LEN + 1);
-		retno = read(sockfd, msg, 2*ID_LEN);
-		if (retno <= 0){
-			perror("interactWithConsole, WHERE, read");
-			exit(EXIT_FAILURE);
-		}
-
-		char* messageType = calloc(ID_LEN+1, sizeof(char));
-		strcpy(messageType, strtok(msg, " "));
-		if (strcmp(messageType, "THERE") != 0){
-			perror("interactWithConsole, WHERE, messageType");
-			exit(EXIT_FAILURE);
-		}
-		free(messageType);
-
-		struct siteLst* thereSite = calloc(1, sizeof(struct siteLst));
-		thereSite->id = calloc(ID_LEN+1, sizeof(char));
-		strncpy(thereSite->id, strtok(NULL, " "), ID_LEN);
-		thereSite->xPos = atoi(strtok(NULL, " "));
-		thereSite->yPos = atoi(strtok(NULL, " "));
-		
-		free(msg);
-		free(whereID);
-
-		struct siteLst* iterator = reachableSites;
-		//reachable
-		if (pow(xPos - thereSite->xPos, 2) + pow(yPos - thereSite->yPos, 2) <= pow(SensorRange, 2)){
-			if (!iterator){
-				reachableSites = calloc(1, sizeof(struct siteLst));
-				reachableSites->id = calloc(strlen(thereSite->id)+1, sizeof(char));
-				strcpy(reachableSites->id, thereSite->id);
-				reachableSites->xPos = thereSite->xPos;
-				reachableSites->yPos = thereSite->yPos;
-			} else {
-				while(iterator->next && strcmp(iterator->id, thereSite->id) != 0){
-					iterator = iterator->next;
-				}
-				if (strcmp(iterator->id, thereSite->id) != 0){ //change position
-					iterator->xPos = thereSite->xPos;
-					iterator->yPos = thereSite->yPos;
-				} else { //have to add it to the end
-					iterator->next = calloc(1, sizeof(struct siteLst));
-					iterator = iterator->next;
-					iterator->id = calloc(strlen(thereSite->id)+1, sizeof(char));
-					strcpy(iterator->id, thereSite->id);
-					iterator->xPos = thereSite->xPos;
-					iterator->yPos = thereSite->yPos;
-				}
-			}
-		}
-
-		iterator = knownLocations;
-		if (!iterator){
-			knownLocations = calloc(1, sizeof(struct siteLst));
-			knownLocations->id = calloc(strlen(thereSite->id)+1, sizeof(char));
-			strcpy(knownLocations->id, thereSite->id);
-			knownLocations->xPos = thereSite->xPos;
-			knownLocations->yPos = thereSite->yPos;
-		} else {
-			while (iterator->next && strcmp(iterator->id, thereSite->id) != 0){
-				iterator = iterator->next;
-			}
-			if (strcmp(iterator->id, thereSite->id) != 0){ //change position
-				iterator->xPos = thereSite->xPos;
-				iterator->yPos = thereSite->yPos;
-			} else { //have to add it to the end
-				iterator->next = calloc(1, sizeof(struct siteLst));
-				iterator = iterator->next;
-				iterator->id = calloc(strlen(thereSite->id)+1, sizeof(char));
-				strcpy(iterator->id, thereSite->id);
-				iterator->xPos = thereSite->xPos;
-				iterator->yPos = thereSite->yPos;
-			}
-		}
-		free(thereSite->id);
-		free(thereSite);
+		where(sockfd, reachableSites, xPos, yPos, SensorRange, knownLocations);
 	}
 
 	return 0;
