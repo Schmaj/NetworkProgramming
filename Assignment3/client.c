@@ -300,6 +300,7 @@ void sendDataMsg(char* myID, int sockfd, struct message* m, struct siteLst* reac
 
 	char* msg = msgToStr(m);
 
+	printf("%s: Sent a new message bound for %s.\n", THIS_ID, m->destinationID);
 	// send message to server, add one byte for null terminator
 	write(sockfd, msg, strlen(msg) + 1);
 
