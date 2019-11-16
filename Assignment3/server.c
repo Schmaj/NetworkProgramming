@@ -561,7 +561,7 @@ char* getReachableList(char* id, int x, int y, int range){
 					// if we should add
 					if(dist <= range){
 						// add new site
-						connectedItr->next = calloc(1, sizeof(siteLst));
+						connectedItr->next = calloc(1, sizeof(struct siteLst));
 						connectedItr->next->id = calloc(ID_LEN, sizeof(char));
 						strcpy(connectedItr->next->id, id);
 						connectedItr->next->xPos = x;
