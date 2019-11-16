@@ -38,7 +38,7 @@
 // string literals for each command
 #define MOVE_CMD "MOVE"
 #define SEND_CMD "SENDDATA"
-#define QUIT_CMD "QUIT"
+#define QUIT_CMD "QUIT\n"
 #define WHERE_CMD "WHERE"
 
 #define DATA_MSG "DATAMESSAGE"
@@ -389,24 +389,33 @@ int connectToServer(int sockfd, char* controlAddress, int controlPort){
 		int family = iterator->ai_family;
 		// IPv4
 		if(family == AF_INET){
-			struct sockaddr_in* info = (struct sockaddr_in*)iterator->ai_addr;
+			//struct sockaddr_in* info = (struct sockaddr_in*)iterator->ai_addr;
 			// check port is correct
-			if(info->sin_port == controlPort){
-				if(connect(sockfd, (struct sockaddr*)info, sizeof(info)) != 0){
+			//if(info->sin_port == controlPort){
+
+			struct sockaddr_in info;
+
+			memset(&info, 0, sizeof(info));
+			info.sin_family = AF_INET;
+			info.sin_port = htons(controlPort);
+			info.sin_addr.s_addr = ((*(struct sockaddr_in*)((*iterator).ai_addr)).sin_addr).s_addr;
+
+
+				if(connect(sockfd, (struct sockaddr*)&info, sizeof(info)) != 0){
 					perror("ERROR: connect() failed\n");
 					break;
 				}
 				// successful connect, return value will be 0
 				status = 0;
 				break;
-			}
+			//}
 
 		} 
 		// IPv6
 		else if(family == AF_INET6){
 			struct sockaddr_in6* info = (struct sockaddr_in6*)iterator->ai_addr;	
 			// check port is correct
-			if(info->sin6_port == controlPort){
+			//if(info->sin6_port == controlPort){
 
 				if(connect(sockfd, (struct sockaddr*)info, sizeof(info)) != 0){
 					perror("ERROR: connect() failed\n");
@@ -415,7 +424,7 @@ int connectToServer(int sockfd, char* controlAddress, int controlPort){
 				// successful connect, return value will be 0
 				status = 0;
 				break;
-			}
+			//}
 		}
 		else{
 			printf("Unrecognized family\n");
@@ -669,7 +678,10 @@ int main(int argc, char * argv[]) {
 	int sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
 	// resolves server name and connects socket to server
-	connectToServer(sockfd, controlAddress, controlPort);
+	if(connectToServer(sockfd, controlAddress, controlPort) == 1){
+		printf("Could not connect to server\n");
+		return 0;
+	}
 
 	// control address no longer needed, free memory
 	free(controlAddress);
@@ -760,6 +772,8 @@ int main(int argc, char * argv[]) {
 
 				freeLst(reachableSites);
 				freeLst(knownLocations);
+
+				printf("Quitting\n");
 
 				return 0;
 

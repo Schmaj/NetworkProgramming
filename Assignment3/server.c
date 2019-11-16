@@ -1035,6 +1035,8 @@ int main(int argc, char * argv[]) {
 			clientList[index].fd = accept(listenerFd, NULL, NULL);
 			clientList[index].tid = NO_THREAD;
 			clientList[index].site = NULL;
+
+			printf("Accepted connection\n");
 		}
 		// loop over connected clients looking for message
 		for(int n = 0; n < MAX_CLIENTS; n++){
