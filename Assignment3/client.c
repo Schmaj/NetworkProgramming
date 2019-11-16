@@ -403,11 +403,12 @@ int connectToServer(int sockfd, char* controlAddress, int controlPort){
 
 				if(connect(sockfd, (struct sockaddr*)&info, sizeof(info)) != 0){
 					perror("ERROR: connect() failed\n");
-					break;
 				}
 				// successful connect, return value will be 0
-				status = 0;
-				break;
+				else{
+					status = 0;
+					break;
+				}
 			//}
 
 		} 
