@@ -204,6 +204,22 @@ void initializeBaseStations(FILE* baseStationFile){
 			}
 		}
 	}	
+	globalSiteList = calloc(1, sizeof(struct siteLst));
+	struct siteLst* itr = globalSiteList;
+	for (uint i = 0; i < MAX_BASE; ++i){
+		if (globalBaseStationList[i].id == NULL) break;
+		itr->id = calloc(ID_LEN+1, sizeof(char));
+		strncpy(itr->id, globalBaseStationList[i].id, ID_LEN);
+		itr->isBaseStation = 1;
+		itr->xPos = globalBaseStationList[i].xPos;
+		itr->yPos = globalBaseStationList[i].yPos;
+		if (i == MAX_BASE-1 || globalBaseStationList[i+1].id == NULL){
+			itr->next = NULL;
+			break;
+		}
+		itr->next = calloc(1, sizeof(struct siteLst));
+		itr = itr->next;
+	}
 	fclose(baseStationFile);
 	if (line) free(line);
 }
