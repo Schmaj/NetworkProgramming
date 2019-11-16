@@ -277,8 +277,8 @@ void sendDataMsg(char* myID, int sockfd, struct message* m, struct siteLst* reac
 		free(m->nextID);
 		m->nextID = NULL;
 	}
-	m->nextID = calloc(ID_LEN, sizeof(char));
-	strcpy(m->nextID, closestSite->id);
+	m->nextID = calloc(ID_LEN+1, sizeof(char));
+	strncpy(m->nextID, closestSite->id, ID_LEN);
 	// add self to the hoplist
 	for(struct hoplist* l = m->hoplst; 1; l = l->next){
 		// just made message, hoplist uninitialized
@@ -286,11 +286,13 @@ void sendDataMsg(char* myID, int sockfd, struct message* m, struct siteLst* reac
 			m->hoplst = calloc(1, sizeof(struct hoplist));
 			m->hoplst->id = calloc(ID_LEN, sizeof(char));
 			strcpy(m->hoplst->id, myID);
+			break;
 		}
 		if(l->next == NULL){
 			l->next = calloc(1, sizeof(struct hoplist));
 			l->next->id = calloc(ID_LEN, sizeof(char));
 			strcpy(l->next->id, myID);
+			break;
 		}
 	}
 	// increment hop length
