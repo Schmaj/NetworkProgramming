@@ -494,15 +494,14 @@ char* getReachableList(char* id, int x, int y, int range){
 	// square range because we are dealing with squared distance
 	range = range * range;
 
-	// TODO: change this value to a real estimate
-	int estimate = 10;
+	// estimate of max size of reachable list
+	int estimate = MAX_SIZE + (INT_LEN + ID_LEN) * (MAX_BASE + MAX_CLIENTS + 1);
+
+	// counts number of reachable sites
+	int numReachable = 0;
 
 	// allocate memory
 	char* reachList = calloc(estimate, sizeof(char));
-
-	// message begins with "REACHABLE "
-	strcat(reachList, REACHABLE_MSG);
-	strcat(reachList, " ");
 
 	// iterate over every site we know about
 	for(struct siteLst* itr = globalSiteList; itr != NULL; itr = itr->next){
@@ -520,11 +519,13 @@ char* getReachableList(char* id, int x, int y, int range){
 			char entry[ID_LEN + 2*INT_LEN + 3];
 			sprintf(entry, "%s %d %d ", itr->id, itr->xPos, itr->yPos);
 			strcat(reachList, entry);
+			numReachable++;
 		}
 
+		// if this site is a base station
 		int base = isBaseStation(itr->id);
 		if(base != -1){
-			struct siteLst* connectedItr = globalBaseStationList[base];
+			struct siteLst* connectedItr = globalBaseStationList[base].connectedLst;
 			struct siteLst* prev = NULL;
 			while(1){
 
@@ -539,7 +540,7 @@ char* getReachableList(char* id, int x, int y, int range){
 					else{
 						// if this site is head of list, move head to next site
 						if(prev == NULL){
-							globalBaseStationList[base] = connectedItr->next;
+							globalBaseStationList[base].connectedLst = connectedItr->next;
 						}
 						// otherwise update previous entry to point past this, removing it from the list
 						else{
@@ -580,6 +581,17 @@ char* getReachableList(char* id, int x, int y, int range){
 		}
 	}
 
+	char* msg = calloc(estimate, sizeof(char));
+
+	// message begins with "REACHABLE [NumReachable]"
+	sprintf(msg, "%s %d ", REACHABLE_MSG, numReachable);
+	// append reachable list
+	strcat(msg, reachList);
+
+	free(reachList);
+
+	return msg;
+
 }
 
 void* handleMessage(void* args){
@@ -608,7 +620,7 @@ void* handleMessage(void* args){
 			}
 		}
 
-		clientList[n].fd = NO_CLIENT;
+		//clientList[n].fd = NO_CLIENT;
 
 		free(buf);
 		free(cli);
@@ -688,7 +700,6 @@ void* handleMessage(void* args){
 		free(msgOut);
 	}
 	else if(strcmp(m->messageType, UPDATE_MSG) == 0){
-		// TODO: set site pointer in client struct
 
 		//"UPDATEPOSITION %s %d %d %d ", sensorID, SensorRange, xPos, yPos
 		// move pointer of strtok past "UPDATEPOSITION" in our buffer
