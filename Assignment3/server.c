@@ -595,6 +595,7 @@ char* getReachableList(char* id, int x, int y, int range){
 }
 
 void* handleMessage(void* args){
+	printf("begin handle message\n");
 	struct client* cli = (struct client*)args;
 
 	// estimated max size of message
@@ -700,27 +701,47 @@ void* handleMessage(void* args){
 		free(msgOut);
 	}
 	else if(strcmp(m->messageType, UPDATE_MSG) == 0){
+		printf("begin update message\n");
 
 		//"UPDATEPOSITION %s %d %d %d ", sensorID, SensorRange, xPos, yPos
 		// move pointer of strtok past "UPDATEPOSITION" in our buffer
 		strtok(buf, " ");
+
+		printf("Hit 1\n");
 
 		char* newId = calloc(ID_LEN, sizeof(char));
 
 		// copy id from message into newId
 		strcpy(newId, strtok(NULL, " "));
 
+		printf("Hit 2\n");
+
 		struct siteLst* updateSite = globalSiteList;
+
+		if(globalSiteList == NULL){
+			printf("NULL globalSiteList\n");
+			return 0;
+		}
 
 		// search through existing sites to determine if this is a new site or an update
 		// if new site, create new struct siteLst for it
 		// upon exiting this loop, updateSite will point to the site of this client
 		while(1){
 
+			printf("Hit 3\n");
+
+			if(updateSite->id == NULL){
+				printf("NULL id\n");
+				return 0;
+			}
+
 			// if this site already exists, break
 			if(strcmp(updateSite->id, newId) == 0){
 				break;
 			}
+
+			printf("Hit 4\n");
+
 			// if there is no next site, this site does not exist yet, create it
 			if(updateSite->next == NULL){
 				
@@ -728,6 +749,8 @@ void* handleMessage(void* args){
 				updateSite->next = calloc(1, sizeof(struct siteLst));
 				updateSite->next->id = calloc(ID_LEN, sizeof(char));
 				strcpy(updateSite->next->id, newId);
+
+				printf("Hit 5\n");
 
 				// set field in appropriate client to point to this new site
 				for(int n = 0; n < MAX_CLIENTS; n++){
@@ -737,11 +760,18 @@ void* handleMessage(void* args){
 					}
 				}
 
+				printf("Hit 6\n");
 				// set updateSite and break
 				updateSite = updateSite->next;
 				break;
 			}
+
+			printf("Hit 7\n");
+
+			updateSite = updateSite->next;
 		}
+
+		printf("Hit 8\n");
 
 		// get range from message
 		int range = atoi(strtok(NULL, " "));
@@ -753,11 +783,15 @@ void* handleMessage(void* args){
 		updateSite->xPos = newX;
 		updateSite->yPos = newY;
 
+		printf("Hit 9\n");
+
 		// create string for response to client
 		// response includes list of all sites that are reachable by that client 
 		// message in form: REACHABLE [NumReachable] [ReachableList]
 		//		where ReachableList is space delimited list of form: [ID] [XPosition] [YPosition]
 		char* response = getReachableList(updateSite->id, newX, newY, range);
+
+		printf("Hit 10\n");
 
 		write(cli->fd, response, strlen(response));
 
