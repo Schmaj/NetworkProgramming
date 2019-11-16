@@ -212,6 +212,8 @@ void sendDataMsg(char* myID, int sockfd, struct message* m, struct siteLst* reac
 		return;
 	}
 
+	printf("Sending to %s at %d %d\n", dest->id, dest->xPos, dest->yPos);
+
 	// closest to dest, ties alphabetically
 	struct siteLst* closestSite = NULL;
 	int closestDist = INT_MAX;
@@ -221,11 +223,14 @@ void sendDataMsg(char* myID, int sockfd, struct message* m, struct siteLst* reac
 	// loop over reachable sites and find site closest to destination that would not cause a cycle
 	while(itr != NULL){
 
+		printf("Looking at site %s\n", itr->id);
+
 		// flag representing whether or not site itr is on the hoplst
 		int skip = 0;
 
 		for(struct hoplist* visited = m->hoplst; visited != NULL; visited = visited->next){
 			if(strcmp(itr->id, visited->id) == 0){
+				printf("Skipping site because hoplist\n");
 				skip = 1;
 				break;
 			}
@@ -240,10 +245,13 @@ void sendDataMsg(char* myID, int sockfd, struct message* m, struct siteLst* reac
 		// square of distance from itr to dest
 		int dist = (dest->xPos - itr->xPos)  * (dest->xPos - itr->xPos) + (dest->yPos - itr->yPos) * (dest->yPos - itr->yPos);
 
+		printf("Dist is %d\n", dist);
+
 		// update closest values
 		if(dist < closestDist){
 			closestSite = itr;
 			closestDist = dist;
+			printf("Updating closest\n");
 		}
 		// distance is equal, settle tie in lexicographical order
 		else if(dist == closestDist){
@@ -434,18 +442,21 @@ int connectToServer(int sockfd, char* controlAddress, int controlPort){
 
 
 // returns dynamically allocated thereSite, siteLst of the requested site
-struct siteLst* where(int sockfd, struct siteLst* reachableSites, int xPos, int yPos, int SensorRange){
-	char* whereID = calloc(ID_LEN+1, sizeof(char));
-	strncpy(whereID, strtok(NULL, "\n"), ID_LEN);
+struct siteLst* where(int sockfd, struct siteLst* reachableSites, int xPos, int yPos, int SensorRange, char* whereID){
+	printf("Start \n");
+	printf("start 2\n");
 	char* msg = calloc(2*ID_LEN + 1, sizeof(char));
 	sprintf(msg, "WHERE %s ", whereID);
+	printf("start 3\n");
 	int retno = write(sockfd, msg, 2*ID_LEN);
 	if (retno <= 0){
 		perror("interactWithConsole, WHERE, write");
 		exit(EXIT_FAILURE);
 	}
+	printf("start 4\n");
 	memset(msg, 0, 2*ID_LEN + 1);
 	retno = read(sockfd, msg, 2*ID_LEN);
+	printf("start 5\n");
 	if (retno <= 0){
 		perror("interactWithConsole, WHERE, read");
 		exit(EXIT_FAILURE);
@@ -453,17 +464,22 @@ struct siteLst* where(int sockfd, struct siteLst* reachableSites, int xPos, int 
 
 	char* messageType = calloc(ID_LEN+1, sizeof(char));
 	strcpy(messageType, strtok(msg, " "));
+	printf("start 6\n");
 	if (strcmp(messageType, "THERE") != 0){
 		perror("interactWithConsole, WHERE, messageType");
 		exit(EXIT_FAILURE);
 	}
 	free(messageType);
 
+	printf("HIT 1\n");
+
 	struct siteLst* thereSite = calloc(1, sizeof(struct siteLst));
 	thereSite->id = calloc(ID_LEN+1, sizeof(char));
 	strncpy(thereSite->id, strtok(NULL, " "), ID_LEN);
 	thereSite->xPos = atoi(strtok(NULL, " "));
 	thereSite->yPos = atoi(strtok(NULL, " "));
+
+	printf("HIT 2\n");
 	
 	free(msg);
 	free(whereID);
@@ -508,8 +524,10 @@ QUIT
 WHERE [SensorID/BaseID]
 
 */
-int interactWithConsole(char* sensorID, int sockfd, int SensorRange, struct siteLst* reachableSites, struct siteLst* knownLocations, 
+int interactWithConsole(char* sensorID, int sockfd, int SensorRange, struct siteLst** reachableSitesPtr, struct siteLst* knownLocations, 
 				int xPos, int yPos){
+
+	struct siteLst* reachableSites = *reachableSitesPtr;
 
 	// buffer to hold command
 	char buf[CMD_SIZE];
@@ -536,6 +554,7 @@ int interactWithConsole(char* sensorID, int sockfd, int SensorRange, struct site
 
 		// update position and send message to server
 		updatePosition(reachableSites, sensorID, SensorRange, newxPos, newyPos, sockfd);
+		*reachableSitesPtr = reachableSites;
 
 		return 0;
 
@@ -563,9 +582,13 @@ int interactWithConsole(char* sensorID, int sockfd, int SensorRange, struct site
 		m->hopLeng = 0;
 		m->hoplst = NULL;
 
+		char* whereID = calloc(ID_LEN+1, sizeof(char));
+		strncpy(whereID, m->destinationID, ID_LEN);
+
 		// update position ot get up to date reachable list
-		updatePosition(reachableSites, sensorID, SensorRange, xPos, yPos, sockfd);
-		struct siteLst* dest = where(sockfd, reachableSites, xPos, yPos, SensorRange);
+		reachableSites = updatePosition(reachableSites, sensorID, SensorRange, xPos, yPos, sockfd);
+		*reachableSitesPtr = reachableSites;
+		struct siteLst* dest = where(sockfd, reachableSites, xPos, yPos, SensorRange, whereID);
 
 		sendDataMsg(sensorID, sockfd, m, reachableSites, dest);
 
@@ -586,7 +609,9 @@ int interactWithConsole(char* sensorID, int sockfd, int SensorRange, struct site
 	}
 	// WHERE [SensorID/BaseID]
 	else if(strcmp(command, WHERE_CMD) == 0){
-		where(sockfd, reachableSites, xPos, yPos, SensorRange);
+		char* whereID = calloc(ID_LEN+1, sizeof(char));
+		strncpy(whereID, strtok(NULL, " \0\n"), ID_LEN);
+		where(sockfd, reachableSites, xPos, yPos, SensorRange, whereID);
 	}
 
 	return 0;
@@ -741,7 +766,7 @@ int main(int argc, char * argv[]) {
 
 		if(FD_ISSET(standardInput, &rfds)){
 			
-			int quit = interactWithConsole(sensorID, sockfd, SensorRange, reachableSites, knownLocations, xPos, yPos);
+			int quit = interactWithConsole(sensorID, sockfd, SensorRange, &reachableSites, knownLocations, xPos, yPos);
 
 			// quit command received, release memory and close sockets
 			if(quit == 1){

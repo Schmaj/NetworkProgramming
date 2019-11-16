@@ -626,6 +626,7 @@ void* handleMessage(void* args){
 
 	// client has disconnected
 	if(bytes == 0){
+		printf("Client disconnected\n");
 		// need to remove client from clients list
 
 		for(int n = 0; n < MAX_CLIENTS; n++){
