@@ -117,20 +117,20 @@ struct message * parseMsg(char * msg, int msgSize){
 
 	struct message* retMsg = calloc(1, sizeof(struct message));
 	retMsg->messageType = calloc(ID_LEN, sizeof(char));
-	strcpy(retMsg->messageType, strtok(cpy, " "));
+	strcpy(retMsg->messageType, strtok(cpy, " \n\0"));
 
 	if (strcmp(retMsg->messageType, "DATAMESSAGE") == 0){
 
 		retMsg->originID = calloc(ID_LEN, sizeof(char));
-		strcpy(retMsg->originID, strtok(NULL, " "));
+		strcpy(retMsg->originID, strtok(NULL, " \n\0"));
 
 		retMsg->nextID = calloc(ID_LEN, sizeof(char));
-		strcpy(retMsg->nextID, strtok(NULL, " "));
+		strcpy(retMsg->nextID, strtok(NULL, " \n\0"));
 
 		retMsg->destinationID = calloc(ID_LEN, sizeof(char));
-		strcpy(retMsg->destinationID, strtok(NULL, " "));
+		strcpy(retMsg->destinationID, strtok(NULL, " \n\0"));
 
-		retMsg->hopLeng = atoi(strtok(NULL, " "));
+		retMsg->hopLeng = atoi(strtok(NULL, " \n\0"));
 
 		retMsg->hoplst = calloc(1, sizeof(struct message));
 		struct hoplist* iterator = retMsg->hoplst;
@@ -674,7 +674,7 @@ void* handleMessage(void* args){
 		strncpy(NodeID, strtok(buf, " "),ID_LEN+1);
 		if (strcmp(NodeID, "WHERE") == 0){
 			memset(NodeID, 0, ID_LEN+1);
-			strncpy(NodeID, strtok(NULL, " "), ID_LEN);
+			strncpy(NodeID, strtok(NULL, " \n\0"), ID_LEN);
 		}
 		int XPosition = -1, YPosition = -1;
 		struct siteLst* itr = globalSiteList;
@@ -705,7 +705,7 @@ void* handleMessage(void* args){
 
 		//"UPDATEPOSITION %s %d %d %d ", sensorID, SensorRange, xPos, yPos
 		// move pointer of strtok past "UPDATEPOSITION" in our buffer
-		strtok(buf, " ");
+		strtok(buf, " \n\0");
 
 		printf("Hit 1\n");
 
@@ -774,11 +774,11 @@ void* handleMessage(void* args){
 		printf("Hit 8\n");
 
 		// get range from message
-		int range = atoi(strtok(NULL, " "));
+		int range = atoi(strtok(NULL, " \n\0"));
 
 		// update xPos and yPos fields in our globalSiteList
-		int newX = atoi(strtok(NULL, " "));
-		int newY = atoi(strtok(NULL, " "));
+		int newX = atoi(strtok(NULL, " \n\0"));
+		int newY = atoi(strtok(NULL, " \n\0"));
 
 		updateSite->xPos = newX;
 		updateSite->yPos = newY;
@@ -815,7 +815,7 @@ int interactWithConsole(){
 
 	char command[CMD_SIZE];
 
-	strcpy(command, strtok(buf, " "));
+	strcpy(command, strtok(buf, " \n\0"));
 	// SENDDATA [DestinationID]
 	if(strcmp(command, SEND_CMD) == 0){
 
@@ -826,14 +826,14 @@ int interactWithConsole(){
 		strncpy(m->messageType, DATA_MSG, ID_LEN);
 
 		m->originID = calloc(ID_LEN+1, sizeof(char));
-		strncpy(m->originID, strtok(NULL, " "), ID_LEN);
+		strncpy(m->originID, strtok(NULL, " \n\0"), ID_LEN);
 
 		// nextID initially null, will be determined 
 		m->nextID = NULL;
 
 		// destination ID intialized to destination given by user
 		m->destinationID = calloc(ID_LEN+1, sizeof(char));
-		strncpy(m->destinationID, strtok(NULL, "\n"), ID_LEN);
+		strncpy(m->destinationID, strtok(NULL, " \n\0"), ID_LEN);
 
 		// hopleng and hoplist initially empty, will be updated to include self in sendDataMsg()
 		m->hopLeng = 0;
@@ -1047,7 +1047,12 @@ int main(int argc, char * argv[]) {
 					}
 				}
 
+				close(listenerFd);
 				free(clientList);
+				free(globalBaseStationList);
+				//TODO: free globalSiteList
+
+				return 0;
 			}
 		}
 		// new client connecting
