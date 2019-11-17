@@ -262,7 +262,7 @@ void sendDataMsg(char* myID, int sockfd, struct message* m, struct siteLst* reac
 	}
 
 	if(closestSite == NULL){
-		printf("%s: Message from %s to %s cannot be delivered.\n", myID, m->originID, m->destinationID);
+		printf("%s: Message from %s to %s could not be delivered.\n", myID, m->originID, m->destinationID);
 		return;
 	}
 
@@ -620,7 +620,7 @@ int interactWithConsole(char* sensorID, int sockfd, int SensorRange, struct site
 				printf("%s: Message from %s to %s successfully received.\n", sensorID, m->originID, sensorID);
 			}
 			else{
-				printf("%s: Message from %s to %s cannot be delivered.\n", sensorID, m->originID, m->destinationID);
+				printf("%s: Message from %s to %s could not be delivered.\n", sensorID, m->originID, m->destinationID);
 			}
 			return 0;
 		}
