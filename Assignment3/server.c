@@ -516,16 +516,18 @@ void giveToBaseStation(struct baseStation* base, struct message* m){
 	sendMsgOverSocket(m);
 
 
-
 }
 
 // if this id is a basestation return its index, else return -1
 int isBaseStation(char* id){
+	pthread_mutex_lock(&baseListMutex);
 	for(int n = 0; n < MAX_BASE; n++){
 		if(strcmp(id, globalBaseStationList[n].id) == 0){
+			pthread_mutex_unlock(&baseListMutex);
 			return n;
 		}
 	}
+	pthread_mutex_unlock(&baseListMutex);
 	return -1;
 }
 
@@ -576,6 +578,7 @@ char* getReachableList(char* id, int x, int y, int range){
 		if(base != -1){
 			struct siteLst* connectedItr = globalBaseStationList[base].connectedLst;
 			struct siteLst* prev = NULL;
+			pthread_mutex_lock(&baseListMutex);
 			while(1){
 
 				// if this site is already in connected list
@@ -627,8 +630,11 @@ char* getReachableList(char* id, int x, int y, int range){
 				// TODO: look at this, leaving in hurry, probably not done
 
 			}
+			pthread_mutex_unlock(&baseListMutex);
 		}
 	}
+
+	pthread_mutex_unlock(&siteListMutex);
 
 	char* msg = calloc(estimate, sizeof(char));
 
