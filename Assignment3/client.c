@@ -629,7 +629,7 @@ int interactWithConsole(char* sensorID, int sockfd, int SensorRange, struct site
 		struct siteLst* dest = where(sockfd, reachableSites, xPos, yPos, SensorRange, whereID);
 
 		sendDataMsg(sensorID, sockfd, m, reachableSites, dest);
-
+		free(dest->id);
 		free(dest);
 
 		// TODO free message
@@ -694,7 +694,7 @@ int recvMsg(int sockfd, char* myID, struct siteLst** reachableSitesPtr, int xPos
 	struct siteLst* dest = where(sockfd, reachableSites, xPos, yPos, SensorRange, whereID);
 
 	sendDataMsg(myID, sockfd, m, reachableSites, dest);
-
+	free(dest->id);
 	free(dest);
 
 	return 0;
