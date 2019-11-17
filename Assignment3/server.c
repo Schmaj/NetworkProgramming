@@ -847,7 +847,7 @@ void* handleMessage(void* args){
 
 	}
 
-
+	freeMsg(m);
 	free(cli);
 	free(buf);
 	free(args);
