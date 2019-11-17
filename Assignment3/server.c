@@ -339,7 +339,6 @@ void freeMsg(struct message* m){
 // only called if next recipient is known and not a base station
 // actually sends data over socket, frees message struct m
 void sendMsgOverSocket(struct message* m){
-
 	// socket descriptor for client
 	int sd = -1;
 
@@ -365,7 +364,6 @@ void sendMsgOverSocket(struct message* m){
 	char* buf = msgToStr(m, "");
 
 	int bytes = write(sd, buf, strlen(buf));
-
 
 	// TODO: double check error code
 	if(bytes == 0){
@@ -409,6 +407,7 @@ void setNextID(char* myID, struct message* m, struct siteLst* reachableSites){
 	struct siteLst* itr = reachableSites;
 	// loop over reachable sites and find site closest to destination that would not cause a cycle
 	while(itr != NULL){
+		printf("while\n");
 
 		// flag representing whether or not site itr is on the hoplst
 		int skip = 0;
@@ -475,6 +474,7 @@ void setNextID(char* myID, struct message* m, struct siteLst* reachableSites){
 	}
 	// increment hop length
 	m->hopLeng++;
+
 }
 
 void giveToBaseStation(struct baseStation* base, struct message* m){
@@ -506,9 +506,9 @@ void giveToBaseStation(struct baseStation* base, struct message* m){
 		if(globalBaseStationList[n].id && strcmp(globalBaseStationList[n].id, m->nextID) == 0){
 			// have the basestation receive message or hand it off to next recipient
 			baseNext = &globalBaseStationList[n];
-			giveToBaseStation(baseNext, m);
-
 			pthread_mutex_unlock(&baseListMutex);
+
+			giveToBaseStation(baseNext, m);
 
 			// message has been dealt with, return
 			return;
@@ -519,6 +519,7 @@ void giveToBaseStation(struct baseStation* base, struct message* m){
 
 	// if not baseStation, send to client
 	sendMsgOverSocket(m);
+
 
 
 }
