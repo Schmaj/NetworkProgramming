@@ -272,8 +272,8 @@ char* msgToStr(struct message* msg, char* thisID){
 		iterator = iterator->next;
 	}
 	iterator = NULL;
-	strcat(str, thisID);
-	strcat(str, " ");
+	//strcat(str, thisID);
+	//strcat(str, " ");
 	return str;
 }
 
