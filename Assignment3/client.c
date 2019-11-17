@@ -643,6 +643,10 @@ int recvMsg(int sockfd, char* myID, struct siteLst** reachableSitesPtr, int xPos
 	char* buf = calloc(msgSize, sizeof(char));
 
 	int bytes = read(sockfd, buf, msgSize);
+	// other side closed connection, clean up
+	if(bytes == 0){
+		close(sockfd);
+	}
 
 	struct message* m = parseMsg(buf, bytes);
 
@@ -756,6 +760,9 @@ int main(int argc, char * argv[]) {
 	// file descriptor for stdin, could change based on piping or other output shenanigans
 	int standardInput = fileno(stdin);
 
+	// flag for CONTROL having disconnected, don't poll sockfd anymore
+	int closedSock = 0;
+
 	while(1){
 
 
@@ -765,8 +772,11 @@ int main(int argc, char * argv[]) {
 		// add stdin to fdset
 		FD_SET(standardInput, &rfds);
 
-		// add socket for server to fdset
-		FD_SET(sockfd, &rfds);
+		// if socket still communicating
+		if(closedSock == 0){
+			// add socket for server to fdset
+			FD_SET(sockfd, &rfds);
+		}
 
 		// structure to specify TIMEOUT second timeout on select() call
 		struct timeval timeout;
@@ -806,9 +816,19 @@ int main(int argc, char * argv[]) {
 			}
 		}
 
-		if(FD_ISSET(sockfd, &rfds)){
-			//printf("RECEIVED something\n");
-			recvMsg(sockfd, sensorID, &reachableSites, xPos, yPos, SensorRange);
+		// if socket still open
+		if(closedSock == 0){
+
+			if(FD_ISSET(sockfd, &rfds)){
+				//printf("RECEIVED something\n");
+				int rc = recvMsg(sockfd, sensorID, &reachableSites, xPos, yPos, SensorRange);
+				if(rc == 5){
+					closedSock = 1;
+					sockfd = -1;
+				}
+
+			}
+
 		}
 
 	}

@@ -75,6 +75,12 @@ struct client* clientList;
 pthread_mutex_t clientMutex = PTHREAD_MUTEX_INITIALIZER;
 
 
+struct thread_args{
+	struct client* cli;
+	char* msg;
+	int bytesRead;
+};
+
 struct message{
 	char* messageType;
 	char* originID;
@@ -650,17 +656,9 @@ char* getReachableList(char* id, int x, int y, int range){
 
 void* handleMessage(void* args){
 	//printf("begin handle message\n");
-	struct client* cli = (struct client*)args;
-
-	// estimated max size of message
-	// length of name (plus 1 character for space) multiplied by the max number of names (full hop list + originalSiteId
-	// + destinationSiteID) + message type length (MAX_SIZE) + integer (hoplength)
-	int msgSize = (ID_LEN + 1) * (MAX_HOP + 2) + MAX_SIZE + INT_LEN;
-
-	// buffer to hold message from server
-	char* buf = calloc(msgSize, sizeof(char));
-
-	int bytes = read(cli->fd, buf, msgSize);
+	struct client* cli = (struct client*)(((struct thread_args*)args)->cli);
+	int bytes = ((struct thread_args*)args)->bytesRead;
+	char* buf = ((struct thread_args*)args)->msg;
 
 	// client has disconnected
 	if(bytes == 0){
@@ -1141,9 +1139,23 @@ int main(int argc, char * argv[]) {
 				}
 
 				// copy client struct into new memory to pass as arguments to thread
-				void* args = calloc(1, sizeof(struct client));
-				memcpy(args, &clientList[n], sizeof(struct client));
-				pthread_create(&clientList[n].tid, NULL, handleMessage, args);
+				struct thread_args* args = calloc(1, sizeof(struct thread_args));
+				args->cli = calloc(1, sizeof(struct client));
+				memcpy(args->cli, &clientList[n], sizeof(struct client));
+
+
+				// estimated max size of message
+				// length of name (plus 1 character for space) multiplied by the max number of names (full hop list + originalSiteId
+				// + destinationSiteID) + message type length (MAX_SIZE) + integer (hoplength)
+				int msgSize = (ID_LEN + 1) * (MAX_HOP + 2) + MAX_SIZE + INT_LEN;
+
+				// buffer to hold message from server
+				char* buf = calloc(msgSize, sizeof(char));
+
+				int bytes = read(args->cli->fd, buf, msgSize);
+				args->bytesRead = bytes;
+				args->msg = buf;
+				pthread_create(&clientList[n].tid, NULL, handleMessage, (void*)args);
 			}
 		}
 
