@@ -68,7 +68,7 @@ struct siteLst* globalSiteList; // size MAX_BASE + MAX_CLIENTS
 // mutex for accessing and editing globalSiteList
 pthread_mutex_t siteListMutex = PTHREAD_MUTEX_INITIALIZER;
 struct baseStation* globalBaseStationList; //10
-// mutex for accessing and editing glbalBaseStationList
+// mutex for accessing and editing globalBaseStationList
 pthread_mutex_t baseListMutex = PTHREAD_MUTEX_INITIALIZER;
 struct client* clientList;
 // mutex for accessing and editing clientList
@@ -116,6 +116,26 @@ struct client{
 	struct siteLst* site;
 	pthread_t tid;
 };
+
+// deallocates all elements in this list
+void freeLst(struct siteLst* lst){
+	// if called on NULL, don't do anything
+	if(lst == NULL){
+		return;
+	}
+
+	if(lst->next){
+		freeLst(lst->next);
+		free(lst->next);
+		lst->next = NULL;
+	}
+	if(lst->id != NULL){
+		free(lst->id);
+		lst->id = NULL;
+	}
+	
+	return;
+}
 
 /*
 Arg msg: message sent in, to be parsed and information put into struct message
@@ -1077,6 +1097,15 @@ int main(int argc, char * argv[]) {
 
 				close(listenerFd);
 				free(clientList);
+				for(uint i = 0; i < MAX_BASE; ++ i){
+					if (globalBaseStationList[i].id != NULL) {
+						free(globalBaseStationList[i].id);
+					}
+					if (globalBaseStationList[i].connectedLst != NULL){
+						freeLst(globalBaseStationList[i].connectedLst);
+						free(globalBaseStationList[i].connectedLst);
+					}
+				}
 				free(globalBaseStationList);
 				//TODO: free globalSiteList
 
