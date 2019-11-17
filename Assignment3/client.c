@@ -629,7 +629,7 @@ int interactWithConsole(char* sensorID, int sockfd, int SensorRange, struct site
 		struct siteLst* dest = where(sockfd, reachableSites, xPos, yPos, SensorRange, whereID);
 
 		sendDataMsg(sensorID, sockfd, m, reachableSites, dest);
-
+		free(dest->id);
 		free(dest);
 
 		// TODO free message
@@ -650,6 +650,7 @@ int interactWithConsole(char* sensorID, int sockfd, int SensorRange, struct site
 		char* whereID = calloc(ID_LEN+1, sizeof(char));
 		strncpy(whereID, strtok(NULL, " \0\n"), ID_LEN);
 		where(sockfd, reachableSites, xPos, yPos, SensorRange, whereID);
+		free(whereID);
 	}
 
 	return 0;
@@ -693,7 +694,7 @@ int recvMsg(int sockfd, char* myID, struct siteLst** reachableSitesPtr, int xPos
 	struct siteLst* dest = where(sockfd, reachableSites, xPos, yPos, SensorRange, whereID);
 
 	sendDataMsg(myID, sockfd, m, reachableSites, dest);
-
+	free(dest->id);
 	free(dest);
 
 	return 0;
@@ -853,6 +854,7 @@ int main(int argc, char * argv[]) {
 			freeLst(reachableSites);
 			free(reachableSites);
 			reachableSites = NULL;
+			free(THIS_ID);
 
 			return 0;
 
