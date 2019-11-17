@@ -382,6 +382,7 @@ try_read:
 			iterator = iterator->next;
 		}
 	}
+	free(msg);
 	return lst;
 }
 
@@ -649,6 +650,7 @@ int interactWithConsole(char* sensorID, int sockfd, int SensorRange, struct site
 		char* whereID = calloc(ID_LEN+1, sizeof(char));
 		strncpy(whereID, strtok(NULL, " \0\n"), ID_LEN);
 		where(sockfd, reachableSites, xPos, yPos, SensorRange, whereID);
+		free(whereID);
 	}
 
 	return 0;
@@ -852,6 +854,7 @@ int main(int argc, char * argv[]) {
 			freeLst(reachableSites);
 			free(reachableSites);
 			reachableSites = NULL;
+			free(THIS_ID);
 
 			return 0;
 
