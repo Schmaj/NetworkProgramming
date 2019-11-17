@@ -363,7 +363,7 @@ void sendMsgOverSocket(struct message* m){
 
 	char* buf = msgToStr(m, "");
 
-	int bytes = write(sd, buf, strlen(buf));
+	int bytes = write(sd, buf, strlen(buf)+1);
 
 	// TODO: double check error code
 	if(bytes == 0){
@@ -732,7 +732,7 @@ void* handleMessage(void* args){
 		char* msgOut = calloc(ID_LEN*2 + 1, sizeof(char));
 		sprintf(msgOut, "THERE %s %d %d ", NodeID, XPosition, YPosition);
 		free(NodeID);
-		int retno = write(cli->fd, msgOut, ID_LEN*2 + 1);
+		int retno = write(cli->fd, msgOut, strlen(msgOut)+2);
 		if (retno <= 0){
 			perror("WHERE, write");
 			exit(EXIT_FAILURE);
@@ -812,7 +812,7 @@ void* handleMessage(void* args){
 		//		where ReachableList is space delimited list of form: [ID] [XPosition] [YPosition]
 		char* response = getReachableList(updateSite->id, newX, newY, range);
 
-		write(cli->fd, response, strlen(response));
+		write(cli->fd, response, strlen(response)+1);
 
 		free(response);
 

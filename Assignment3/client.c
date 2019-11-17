@@ -472,7 +472,7 @@ struct siteLst* where(int sockfd, struct siteLst* reachableSites, int xPos, int 
 
 	char* msg = calloc(2*ID_LEN + 1, sizeof(char));
 	sprintf(msg, "WHERE %s ", whereID);
-	int retno = write(sockfd, msg, 2*ID_LEN);
+	int retno = write(sockfd, msg, strlen(msg)+1);
 	if (retno <= 0){
 		perror("interactWithConsole, WHERE, write");
 		exit(EXIT_FAILURE);
