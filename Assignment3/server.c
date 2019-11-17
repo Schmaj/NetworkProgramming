@@ -395,7 +395,7 @@ void setNextID(char* myID, struct message* m, struct siteLst* reachableSites){
 	pthread_mutex_unlock(&siteListMutex);
 
 	if(dest == NULL){
-		printf("Message from %s to %s cannot be delivered.\n", m->originID, m->destinationID);
+		printf("Message from %s to %s could not be delivered.\n", m->originID, m->destinationID);
 		return;
 	}
 
@@ -444,7 +444,7 @@ void setNextID(char* myID, struct message* m, struct siteLst* reachableSites){
 	}
 
 	if(closestSite == NULL){
-		printf("Message from %s to %s cannot be delivered.\n", m->originID, m->destinationID);
+		printf("Message from %s to %s could not be delivered.\n", m->originID, m->destinationID);
 		m->nextID = NULL;
 		return;
 	}
