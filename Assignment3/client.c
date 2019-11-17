@@ -788,12 +788,15 @@ int main(int argc, char * argv[]) {
 		timeout.tv_sec = TIMEOUT;
 		timeout.tv_usec = 0;
 
+		if(quitReady == 1){
+			timeout.tv_sec = 0;
+		}
+
 		// wait for activity on listening socket, or any active client
 		int retval = select(sockfd > standardInput ? sockfd + 1 : standardInput + 1, &rfds, NULL, NULL, &timeout);
 
 		if(retval == 0){
-			printf("No Activity\n");
-			continue;
+			//printf("No Activity\n");
 			//return 0;
 		}
 		else if(retval == -1){
