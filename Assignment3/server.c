@@ -843,7 +843,7 @@ void* handleMessage(void* args){
 		write(cli->fd, response, strlen(response)+1);
 
 		free(response);
-
+		free(newId);
 
 	}
 
