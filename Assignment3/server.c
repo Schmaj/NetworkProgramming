@@ -685,6 +685,7 @@ void* handleMessage(void* args){
 			freeMsg(m);
 			free(cli);
 			free(buf);
+			free(args);
 			return NULL;
 		}
 
@@ -702,6 +703,7 @@ void* handleMessage(void* args){
 				// message has been dealt with, return
 				free(cli);
 				free(buf);
+				free(args);
 				return NULL;
 			}
 		}
@@ -828,6 +830,7 @@ void* handleMessage(void* args){
 
 	free(cli);
 	free(buf);
+	free(args);
 	return NULL;
 }
 
