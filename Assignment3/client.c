@@ -262,7 +262,7 @@ void sendDataMsg(char* myID, int sockfd, struct message* m, struct siteLst* reac
 	}
 
 	if(closestSite == NULL){
-		printf("Message from %s to %s cannot be delivered.\n", m->originID, m->destinationID);
+		printf("%s: Message from %s to %s cannot be delivered.\n", myID, m->originID, m->destinationID);
 		return;
 	}
 
@@ -298,7 +298,7 @@ void sendDataMsg(char* myID, int sockfd, struct message* m, struct siteLst* reac
 		printf("%s: Sent a new message bound for %s.\n", THIS_ID, m->destinationID);
 	}
 	else{
-		printf("%s: message from %s to %s being forwarded through %s\n", myID, m->originID, m->destinationID, myID);
+		printf("%s: Message from %s to %s being forwarded through %s\n", myID, m->originID, m->destinationID, myID);
 	}
 	// send message to server, add one byte for null terminator
 	write(sockfd, msg, strlen(msg) + 1);
@@ -361,6 +361,12 @@ try_read:
 		exit(EXIT_FAILURE);
 	}
 	int numReachable = atoi(strtok(NULL, " "));
+
+	// if no reachable sites, return NULL
+	if(numReachable == 0){
+		return NULL;
+	}
+
 	lst = calloc(1, sizeof(struct siteLst));
 	struct siteLst* iterator = lst;
 
@@ -606,6 +612,19 @@ int interactWithConsole(char* sensorID, int sockfd, int SensorRange, struct site
 		// update position ot get up to date reachable list
 		reachableSites = updatePosition(reachableSites, sensorID, SensorRange, xPos, yPos, sockfd);
 		*reachableSitesPtr = reachableSites;
+
+		// trivially, if we cannot reach any sites we cannot deliver this message
+		if(reachableSites == NULL){
+
+			if(strcmp(sensorID, m->destinationID) == 0){
+				printf("%s: Message from %s to %s successfully received.\n", sensorID, m->originID, sensorID);
+			}
+			else{
+				printf("%s: Message from %s to %s cannot be delivered.\n", sensorID, m->originID, m->destinationID);
+			}
+			return 0;
+		}
+
 		struct siteLst* dest = where(sockfd, reachableSites, xPos, yPos, SensorRange, whereID);
 
 		sendDataMsg(sensorID, sockfd, m, reachableSites, dest);

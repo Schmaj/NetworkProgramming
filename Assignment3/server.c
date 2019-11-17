@@ -445,6 +445,7 @@ void setNextID(char* myID, struct message* m, struct siteLst* reachableSites){
 
 	if(closestSite == NULL){
 		printf("Message from %s to %s cannot be delivered.\n", m->originID, m->destinationID);
+		m->nextID = NULL;
 		return;
 	}
 
@@ -498,6 +499,10 @@ void giveToBaseStation(struct baseStation* base, struct message* m){
 	struct baseStation* baseNext = NULL;
 
 	pthread_mutex_lock(&baseListMutex);
+
+	if(m->nextID == NULL){
+		return;
+	}
 
 	// find baseStation struct in baseStationList
 	for(int n = 0; n < MAX_BASE; n++){
