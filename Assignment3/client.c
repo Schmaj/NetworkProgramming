@@ -382,6 +382,7 @@ try_read:
 			iterator = iterator->next;
 		}
 	}
+	if(msg) free(msg);
 	return lst;
 }
 

@@ -157,9 +157,6 @@ struct message * parseMsg(char * msg, int msgSize){
 			}
 		}
 
-		free(cpy);
-	} else {
-		free(cpy);
 	}
 	return retMsg;
 }
@@ -385,6 +382,9 @@ void setNextID(char* myID, struct message* m, struct siteLst* reachableSites){
 
 	// find destination location
 	while(iterator != NULL){
+		if(m->destinationID == NULL || iterator->id == NULL){
+			printf("bad cmp 1\n");
+		}
 		if(strcmp(m->destinationID, iterator->id) == 0){
 			dest = iterator;
 			break;
@@ -412,6 +412,9 @@ void setNextID(char* myID, struct message* m, struct siteLst* reachableSites){
 		int skip = 0;
 
 		for(struct hoplist* visited = m->hoplst; visited != NULL; visited = visited->next){
+			if(itr->id == NULL || visited->id == NULL){
+				printf("bad cmp 2\n");
+			}
 			if(strcmp(itr->id, visited->id) == 0){
 				skip = 1;
 				break;
@@ -434,6 +437,9 @@ void setNextID(char* myID, struct message* m, struct siteLst* reachableSites){
 		}
 		// distance is equal, settle tie in lexicographical order
 		else if(dist == closestDist){
+			if(itr->id == NULL || closestSite->id == NULL){
+				printf("bad cmp 3\n");
+			}
 			// sets closestSite to the site with the lexicographically smaller name, between itr and closestSite
 			closestSite = strcmp(itr->id, closestSite->id) < 0 ? itr : closestSite;
 		}
@@ -454,7 +460,7 @@ void setNextID(char* myID, struct message* m, struct siteLst* reachableSites){
 		free(m->nextID);
 		m->nextID = NULL;
 	}
-	m->nextID = calloc(ID_LEN, sizeof(char));
+	m->nextID = calloc(ID_LEN + 1, sizeof(char));
 	strcpy(m->nextID, closestSite->id);
 	// add self to the hoplist
 	for(struct hoplist* l = m->hoplst; 1; l = l->next){
