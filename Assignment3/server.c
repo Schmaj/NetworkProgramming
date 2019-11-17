@@ -683,13 +683,14 @@ void* handleMessage(void* args){
 		}
 
 		struct baseStation* base = NULL;
-
+		pthread_mutex_lock(&baseListMutex);
 		// find baseStation struct in baseStationList
 		for(int n = 0; n < MAX_BASE; n++){
 			// if base station initialized at index and name matches the next destination
 			if(globalBaseStationList[n].id && strcmp(globalBaseStationList[n].id, m->nextID) == 0){
 				// have the basestation receive message or hand it off to next recipient
 				base = &globalBaseStationList[n];
+				pthread_mutex_unlock(&baseListMutex);
 				giveToBaseStation(base, m);
 
 				// message has been dealt with, return
@@ -698,7 +699,7 @@ void* handleMessage(void* args){
 				return NULL;
 			}
 		}
-
+		pthread_mutex_unlock(&baseListMutex);
 		// sends message to appropriate client
 		sendMsgOverSocket(m);
 
@@ -713,6 +714,7 @@ void* handleMessage(void* args){
 			strncpy(NodeID, strtok(NULL, " \n\0"), ID_LEN);
 		}
 		int XPosition = -1, YPosition = -1;
+		pthread_mutex_lock(&siteListMutex);
 		struct siteLst* itr = globalSiteList;
 		while(itr){
 			if (strcmp(itr->id, NodeID) == 0){
@@ -722,6 +724,7 @@ void* handleMessage(void* args){
 			}
 			itr = itr->next;
 		}
+		pthread_mutex_unlock(&siteListMutex);
 		if (XPosition == -1 || YPosition == -1){
 			perror("WHERE_MSG, Position");
 			exit(EXIT_FAILURE);
