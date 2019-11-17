@@ -65,8 +65,14 @@ struct siteLst;
 void updateSiteLst(char* sensorID, int xPosition, int yPosition);
 
 struct siteLst* globalSiteList; // size MAX_BASE + MAX_CLIENTS
+// mutex for accessing and editing globalSiteList
+pthread_mutex_t siteListMutex = PTHREAD_MUTEX_INITIALIZER;
 struct baseStation* globalBaseStationList; //10
+// mutex for accessing and editing glbalBaseStationList
+pthread_mutex_t baseListMutex = PTHREAD_MUTEX_INITIALIZER;
 struct client* clientList;
+// mutex for accessing and editing clientList
+pthread_mutex_t clientMutex = PTHREAD_MUTEX_INITIALIZER;
 
 
 struct message{
@@ -153,6 +159,8 @@ struct message * parseMsg(char * msg, int msgSize){
 }
 
 // initializes global list of base stations from base station file
+//
+// only called once, before parallelization so no need for mutex
 void initializeBaseStations(FILE* baseStationFile){
 	if (baseStationFile == NULL){
 		perror("initializeBaseStations, baseStationFile");
@@ -270,6 +278,8 @@ Arg: msg is the message received. if msg->messageType == "Update Position",
 		update globalSiteList
 */
 void updateSiteLst(char* sensorID, int xPosition, int yPosition){ // call that for everybody
+	// lock siteList during update
+	pthread_mutex_lock(&siteListMutex);
 	struct siteLst* iterator = globalSiteList;
 	while(iterator != NULL){
 		iterator = iterator->next;
@@ -282,6 +292,7 @@ void updateSiteLst(char* sensorID, int xPosition, int yPosition){ // call that f
 	iterator->yPos = yPosition;
 	iterator->next = NULL;		//just to be sure lol
 	iterator = NULL;
+	pthread_mutex_unlock(&siteListMutex);
 	return;
 }
 
@@ -307,7 +318,7 @@ void freeMsg(struct message* m){
 	while(l != NULL){
 
 		if(l->id){
-			free(l->id);
+			//free(l->id);
 			l->id = NULL;
 		}
 
@@ -326,6 +337,9 @@ void sendMsgOverSocket(struct message* m){
 	// socket descriptor for client
 	int sd = -1;
 
+	// lock for clientList access
+	pthread_mutex_lock(&clientMutex);
+
 	// not base station, forward message to correct client
 	for(int n = 0; n < MAX_CLIENTS; n++){
 		// if client has a name and name matches nextID
@@ -334,6 +348,8 @@ void sendMsgOverSocket(struct message* m){
 			break;
 		}
 	}
+
+	pthread_mutex_unlock(&clientMutex);
 
 	if(sd == -1){
 		printf("Client %s not found\n", m->nextID);
@@ -360,6 +376,7 @@ void sendMsgOverSocket(struct message* m){
 // (nextID, hoplen, hoplist)
 void setNextID(char* myID, struct message* m, struct siteLst* reachableSites){
 	struct siteLst* dest = NULL;
+	pthread_mutex_lock(&siteListMutex);
 	struct siteLst* iterator = globalSiteList;
 
 	// find destination location
@@ -370,6 +387,8 @@ void setNextID(char* myID, struct message* m, struct siteLst* reachableSites){
 		}
 		iterator = iterator->next;
 	}
+
+	pthread_mutex_unlock(&siteListMutex);
 
 	if(dest == NULL){
 		printf("Do not know location of site %s\n", m->destinationID);
@@ -440,11 +459,13 @@ void setNextID(char* myID, struct message* m, struct siteLst* reachableSites){
 			m->hoplst = calloc(1, sizeof(struct hoplist));
 			m->hoplst->id = calloc(ID_LEN, sizeof(char));
 			strcpy(m->hoplst->id, myID);
+			break;
 		}
 		if(l->next == NULL){
 			l->next = calloc(1, sizeof(struct hoplist));
 			l->next->id = calloc(ID_LEN, sizeof(char));
 			strcpy(l->next->id, myID);
+			break;
 		}
 	}
 	// increment hop length
@@ -462,11 +483,17 @@ void giveToBaseStation(struct baseStation* base, struct message* m){
 
 		return;
 	}
+	else{
+		// print that message was properly received
+		printf("%s: Message from %s to %s being forwarded through %s\n", base->id, m->originID, m->destinationID, base->id);
+	}
 
 	// finds and sets next site in path for message m
 	setNextID(base->id, m, base->connectedLst);
 
 	struct baseStation* baseNext = NULL;
+
+	pthread_mutex_lock(&baseListMutex);
 
 	// find baseStation struct in baseStationList
 	for(int n = 0; n < MAX_BASE; n++){
@@ -476,10 +503,14 @@ void giveToBaseStation(struct baseStation* base, struct message* m){
 			baseNext = &globalBaseStationList[n];
 			giveToBaseStation(baseNext, m);
 
+			pthread_mutex_unlock(&baseListMutex);
+
 			// message has been dealt with, return
 			return;
 		}
 	}
+
+	pthread_mutex_unlock(&baseListMutex);
 
 	// if not baseStation, send to client
 	sendMsgOverSocket(m);
@@ -518,6 +549,8 @@ char* getReachableList(char* id, int x, int y, int range){
 
 	// allocate memory
 	char* reachList = calloc(estimate, sizeof(char));
+
+	pthread_mutex_lock(&siteListMutex);
 
 	// iterate over every site we know about
 	for(struct siteLst* itr = globalSiteList; itr != NULL; itr = itr->next){
@@ -1081,6 +1114,7 @@ int main(int argc, char * argv[]) {
 		for(int n = 0; n < MAX_CLIENTS; n++){
 			// if client has disconnected, join final thread for that client
 			if(clientList[n].fd == NO_CLIENT && clientList[n].tid != NO_THREAD){
+				printf("Joining\n");
 				if(pthread_join(clientList[n].tid, NULL) != 0){
 						perror("ERROR joining thread\n");
 						return EXIT_FAILURE;

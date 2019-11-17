@@ -182,8 +182,8 @@ char* msgToStr(struct message* msg){
 		iterator = iterator->next;
 	}
 	iterator = NULL;
-	strcat(str, THIS_ID);
-	strcat(str, " ");
+	//strcat(str, THIS_ID);
+	//strcat(str, " ");
 	return str;
 }
 
@@ -322,6 +322,8 @@ struct siteLst* updatePosition(struct siteLst* lst, char* sensorID, int SensorRa
 	char* msg = calloc(strlen("UPDATEPOSITION ")+1 + ID_LEN + INT_LEN*3 + 4, sizeof(char));
 	sprintf(msg, "UPDATEPOSITION %s %d %d %d ", sensorID, SensorRange, xPos, yPos);
 
+	printf("Message is: %s\n", msg);
+
 	int retno = write(fd, msg, strlen(msg)+1);
 	if (retno <= 0){
 		perror("updatePosition, write");
@@ -329,13 +331,31 @@ struct siteLst* updatePosition(struct siteLst* lst, char* sensorID, int SensorRa
 	}
 	free(msg);
 	msg = calloc(MAX_REACHABLE*ID_LEN + 20, sizeof(char));
+try_read:
 	retno = read(fd, msg, MAX_REACHABLE*ID_LEN + 19);
 	if (retno <= 0){
 		perror("updatePosition, read");
 		exit(EXIT_FAILURE);
 	}
 
-	char* messageType = strtok(msg, " ");
+	printf("read message: %s\n", msg);
+
+	if(retno < 10){
+		printf("Using goto, first byte is ");
+		if(*msg == '\0'){
+			printf("NULL\n");
+		}
+		else if(*msg == ' '){
+			printf("space\n");
+		}
+		goto try_read;
+	}
+
+	char* messageType = strtok(msg, " \0\n");
+	if(messageType == NULL){
+		printf("NULL message in update\n, retno: %d\n", retno);
+
+	}
 	if (strcmp(messageType, "REACHABLE") != 0){
 		perror("updatePosition, messageType");
 		exit(EXIT_FAILURE);
@@ -443,20 +463,16 @@ int connectToServer(int sockfd, char* controlAddress, int controlPort){
 
 // returns dynamically allocated thereSite, siteLst of the requested site
 struct siteLst* where(int sockfd, struct siteLst* reachableSites, int xPos, int yPos, int SensorRange, char* whereID){
-	printf("Start \n");
-	printf("start 2\n");
+
 	char* msg = calloc(2*ID_LEN + 1, sizeof(char));
 	sprintf(msg, "WHERE %s ", whereID);
-	printf("start 3\n");
 	int retno = write(sockfd, msg, 2*ID_LEN);
 	if (retno <= 0){
 		perror("interactWithConsole, WHERE, write");
 		exit(EXIT_FAILURE);
 	}
-	printf("start 4\n");
-	memset(msg, 0, 2*ID_LEN + 1);
-	retno = read(sockfd, msg, 2*ID_LEN);
-	printf("start 5\n");
+	memset(msg, 0, 2*ID_LEN + 2);
+	retno = read(sockfd, msg, 2*ID_LEN + 1);
 	if (retno <= 0){
 		perror("interactWithConsole, WHERE, read");
 		exit(EXIT_FAILURE);
@@ -464,14 +480,11 @@ struct siteLst* where(int sockfd, struct siteLst* reachableSites, int xPos, int 
 
 	char* messageType = calloc(ID_LEN+1, sizeof(char));
 	strcpy(messageType, strtok(msg, " "));
-	printf("start 6\n");
 	if (strcmp(messageType, "THERE") != 0){
 		perror("interactWithConsole, WHERE, messageType");
 		exit(EXIT_FAILURE);
 	}
 	free(messageType);
-
-	printf("HIT 1\n");
 
 	struct siteLst* thereSite = calloc(1, sizeof(struct siteLst));
 	thereSite->id = calloc(ID_LEN+1, sizeof(char));
@@ -479,7 +492,6 @@ struct siteLst* where(int sockfd, struct siteLst* reachableSites, int xPos, int 
 	thereSite->xPos = atoi(strtok(NULL, " "));
 	thereSite->yPos = atoi(strtok(NULL, " "));
 
-	printf("HIT 2\n");
 	
 	free(msg);
 	free(whereID);
@@ -525,9 +537,12 @@ WHERE [SensorID/BaseID]
 
 */
 int interactWithConsole(char* sensorID, int sockfd, int SensorRange, struct siteLst** reachableSitesPtr, struct siteLst* knownLocations, 
-				int xPos, int yPos){
+				int* xPtr, int* yPtr){
 
 	struct siteLst* reachableSites = *reachableSitesPtr;
+
+	int xPos = *xPtr;
+	int yPos = *yPtr;
 
 	// buffer to hold command
 	char buf[CMD_SIZE];
@@ -551,6 +566,9 @@ int interactWithConsole(char* sensorID, int sockfd, int SensorRange, struct site
 		memset(pos, '\0', INT_LEN);
 		strcpy(pos, strtok(NULL, " \0"));
 		int newyPos = atoi(pos);
+
+		*xPtr = newxPos;
+		*yPtr = newyPos;
 
 		// update position and send message to server
 		updatePosition(reachableSites, sensorID, SensorRange, newxPos, newyPos, sockfd);
@@ -766,7 +784,7 @@ int main(int argc, char * argv[]) {
 
 		if(FD_ISSET(standardInput, &rfds)){
 			
-			int quit = interactWithConsole(sensorID, sockfd, SensorRange, &reachableSites, knownLocations, xPos, yPos);
+			int quit = interactWithConsole(sensorID, sockfd, SensorRange, &reachableSites, knownLocations, &xPos, &yPos);
 
 			// quit command received, release memory and close sockets
 			if(quit == 1){
