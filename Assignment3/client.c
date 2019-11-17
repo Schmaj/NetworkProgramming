@@ -22,7 +22,7 @@
 // max characters in a site name
 #define ID_LEN 64
 // number of seconds to wait for select() call
-#define TIMEOUT 15
+#define TIMEOUT 25
 // size of buffer for command line commands
 #define CMD_SIZE 256
 // max number of characters in xPos or yPos for MOVE command
@@ -257,7 +257,7 @@ void sendDataMsg(char* myID, int sockfd, struct message* m, struct siteLst* reac
 	}
 
 	if(closestSite == NULL){
-		printf("No closest site, not sending message\n");
+		printf("Message from %s to %s cannot be delivered.\n", m->originID, m->destinationID);
 		return;
 	}
 
@@ -289,7 +289,12 @@ void sendDataMsg(char* myID, int sockfd, struct message* m, struct siteLst* reac
 
 	char* msg = msgToStr(m);
 
-	printf("%s: Sent a new message bound for %s.\n", THIS_ID, m->destinationID);
+	if(strcmp(myID, m->originID) == 0){
+		printf("%s: Sent a new message bound for %s.\n", THIS_ID, m->destinationID);
+	}
+	else{
+		printf("%s: message from %s to %s being forwarded through %s\n", myID, m->originID, m->destinationID, myID);
+	}
 	// send message to server, add one byte for null terminator
 	write(sockfd, msg, strlen(msg) + 1);
 
@@ -625,7 +630,9 @@ int interactWithConsole(char* sensorID, int sockfd, int SensorRange, struct site
 }
 
 // receive a message from socket
-int recvMsg(int sockfd, char* myID, struct siteLst* reachableSites, struct siteLst* knownLocations){
+int recvMsg(int sockfd, char* myID, struct siteLst** reachableSitesPtr, int xPos, int yPos, int SensorRange){
+
+	struct siteLst* reachableSites = *reachableSitesPtr;
 
 	// estimated max size of message
 	// length of name (plus 1 character for space) multiplied by the max number of names (full hop list + originalSiteId
@@ -646,7 +653,17 @@ int recvMsg(int sockfd, char* myID, struct siteLst* reachableSites, struct siteL
 		return 0;
 	}
 
-	sendDataMsg(myID, sockfd, m, reachableSites, knownLocations);
+	char* whereID = calloc(ID_LEN+1, sizeof(char));
+	strncpy(whereID, m->destinationID, ID_LEN);
+
+	// update position ot get up to date reachable list
+	reachableSites = updatePosition(reachableSites, myID, SensorRange, xPos, yPos, sockfd);
+	*reachableSitesPtr = reachableSites;
+	struct siteLst* dest = where(sockfd, reachableSites, xPos, yPos, SensorRange, whereID);
+
+	sendDataMsg(myID, sockfd, m, reachableSites, dest);
+
+	free(dest);
 
 	return 0;
 }
@@ -758,7 +775,7 @@ int main(int argc, char * argv[]) {
 		timeout.tv_usec = 0;
 
 		// wait for activity on listening socket, or any active client
-		int retval = select(sockfd > standardInput ? sockfd : standardInput, &rfds, NULL, NULL, &timeout);
+		int retval = select(sockfd > standardInput ? sockfd + 1 : standardInput + 1, &rfds, NULL, NULL, &timeout);
 
 		if(retval == 0){
 			printf("No Activity\n");
@@ -790,8 +807,8 @@ int main(int argc, char * argv[]) {
 		}
 
 		if(FD_ISSET(sockfd, &rfds)){
-			// TODO:
-			recvMsg(sockfd, sensorID, reachableSites, knownLocations);
+			//printf("RECEIVED something\n");
+			recvMsg(sockfd, sensorID, &reachableSites, xPos, yPos, SensorRange);
 		}
 
 	}

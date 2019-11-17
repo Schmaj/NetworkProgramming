@@ -22,7 +22,7 @@
 // number of tcp connection requests allowed in backlog
 #define BACKLOG 10
 // number of seconds to block on select() call
-#define TIMEOUT 15
+#define TIMEOUT 25
 // maximum number of clients allowed to connect
 #define MAX_CLIENTS 16
 // value to signify no client has connected at this index of the array
@@ -391,7 +391,7 @@ void setNextID(char* myID, struct message* m, struct siteLst* reachableSites){
 	pthread_mutex_unlock(&siteListMutex);
 
 	if(dest == NULL){
-		printf("Do not know location of site %s\n", m->destinationID);
+		printf("Message from %s to %s cannot be delivered.\n", m->originID, m->destinationID);
 		return;
 	}
 
@@ -440,8 +440,7 @@ void setNextID(char* myID, struct message* m, struct siteLst* reachableSites){
 	}
 
 	if(closestSite == NULL){
-		// TODO: change to proper print statement for message chosen not to send
-		printf("No closest site, not sending message\n");
+		printf("Message from %s to %s cannot be delivered.\n", m->originID, m->destinationID);
 		return;
 	}
 
@@ -476,7 +475,7 @@ void giveToBaseStation(struct baseStation* base, struct message* m){
 	// if this site is the destination
 	if(strcmp(m->destinationID, base->id) == 0){
 		// print that message was properly received
-		printf("%s: Message from %s to %s successfully received\n", base->id, m->originID, base->id);
+		printf("%s: Message from %s to %s successfully received.\n", base->id, m->originID, base->id);
 
 		// message has been delivered, free memory and return
 		freeMsg(m);
@@ -522,7 +521,7 @@ void giveToBaseStation(struct baseStation* base, struct message* m){
 int isBaseStation(char* id){
 	pthread_mutex_lock(&baseListMutex);
 	for(int n = 0; n < MAX_BASE; n++){
-		if(strcmp(id, globalBaseStationList[n].id) == 0){
+		if(globalBaseStationList[n].id != NULL && strcmp(id, globalBaseStationList[n].id) == 0){
 			pthread_mutex_unlock(&baseListMutex);
 			return n;
 		}
@@ -650,7 +649,7 @@ char* getReachableList(char* id, int x, int y, int range){
 }
 
 void* handleMessage(void* args){
-	printf("begin handle message\n");
+	//printf("begin handle message\n");
 	struct client* cli = (struct client*)args;
 
 	// estimated max size of message
@@ -665,7 +664,7 @@ void* handleMessage(void* args){
 
 	// client has disconnected
 	if(bytes == 0){
-		printf("Client disconnected\n");
+		//printf("Client disconnected\n");
 		// need to remove client from clients list
 
 		for(int n = 0; n < MAX_CLIENTS; n++){
@@ -694,7 +693,7 @@ void* handleMessage(void* args){
 
 		// if server is destination
 		if(strcmp(m->destinationID, SERVER_ID) == 0){
-			printf("%s: Message from %s to %s successfully received\n", SERVER_ID, m->originID, SERVER_ID);
+			printf("%s: Message from %s to %s successfully received.\n", SERVER_ID, m->originID, SERVER_ID);
 			// message has been delivered, free memory and return
 			freeMsg(m);
 			free(cli);
@@ -757,7 +756,7 @@ void* handleMessage(void* args){
 		free(msgOut);
 	}
 	else if(strcmp(m->messageType, UPDATE_MSG) == 0){
-		printf("begin update message\n");
+		//printf("begin update message\n");
 
 		//"UPDATEPOSITION %s %d %d %d ", sensorID, SensorRange, xPos, yPos
 		// move pointer of strtok past "UPDATEPOSITION" in our buffer
@@ -900,7 +899,7 @@ int interactWithConsole(){
 
 	}
 	// QUIT
-	else if(strcmp(command, QUIT_CMD) == 0){
+	else if(strncmp(command, QUIT_CMD, strlen(QUIT_CMD)) == 0){
 		// return value of 1 signals quit, all real cleanup will happen in main
 		return 1;
 		
@@ -1052,7 +1051,7 @@ int main(int argc, char * argv[]) {
 		int retval = select(maxFd + 1, &rfds, NULL, NULL, &timeout);
 
 		if(retval == 0){
-			printf("No Activity\n");
+			//printf("No Activity\n");
 			continue;
 			//return 0;
 		}
@@ -1114,13 +1113,13 @@ int main(int argc, char * argv[]) {
 			clientList[index].tid = NO_THREAD;
 			clientList[index].site = NULL;
 
-			printf("Accepted connection\n");
+			//printf("Accepted connection\n");
 		}
 		// loop over connected clients looking for message
 		for(int n = 0; n < MAX_CLIENTS; n++){
 			// if client has disconnected, join final thread for that client
 			if(clientList[n].fd == NO_CLIENT && clientList[n].tid != NO_THREAD){
-				printf("Joining\n");
+				//printf("Joining\n");
 				if(pthread_join(clientList[n].tid, NULL) != 0){
 						perror("ERROR joining thread\n");
 						return EXIT_FAILURE;
