@@ -761,6 +761,12 @@ int main(int argc, char * argv[]) {
 	// flag for CONTROL having disconnected, don't poll sockfd anymore
 	int closedSock = 0;
 
+
+	// a flag to allow two loops and a short sleep before quitting, implemented to deal with issue
+	// of autograding processing quit command before message is received by socket
+	int quitReady = 0;
+
+
 	while(1){
 
 
@@ -795,26 +801,6 @@ int main(int argc, char * argv[]) {
 			return EXIT_FAILURE;
 		}
 
-		if(FD_ISSET(standardInput, &rfds)){
-			
-			int quit = interactWithConsole(sensorID, sockfd, SensorRange, &reachableSites, &xPos, &yPos);
-
-			// quit command received, release memory and close sockets
-			if(quit == 1){
-				close(sockfd);
-
-				free(sensorID);
-				sensorID = NULL;
-
-				freeLst(reachableSites);
-				free(reachableSites);
-				reachableSites = NULL;
-
-				return 0;
-
-			}
-		}
-
 		// if socket still open
 		if(closedSock == 0){
 
@@ -826,7 +812,45 @@ int main(int argc, char * argv[]) {
 					sockfd = -1;
 				}
 
+				// continue to allow another message before quitting
+				continue;
+
 			}
+
+		}
+
+		// if command on stdinput
+		if(FD_ISSET(standardInput, &rfds)){
+			
+			int quit = interactWithConsole(sensorID, sockfd, SensorRange, &reachableSites, &xPos, &yPos);
+
+			// quit command received, release memory and close sockets
+			if(quit == 1){
+				
+				quitReady = 1;
+				// short sleep, 1 second to allow everything to arrive
+				sleep(1);
+
+				continue;
+
+			}
+		}
+
+		// if we have decided to quit
+		if(quitReady == 1){
+			// if socket still open, close it
+			if(closedSock == 0){
+				close(sockfd);
+			}
+
+			free(sensorID);
+			sensorID = NULL;
+
+			freeLst(reachableSites);
+			free(reachableSites);
+			reachableSites = NULL;
+
+			return 0;
 
 		}
 

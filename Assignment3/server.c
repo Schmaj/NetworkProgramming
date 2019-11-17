@@ -1179,16 +1179,3 @@ int main(int argc, char * argv[]) {
 
 	return 0;
 }
-/*
-baseStationToBaseStation()
-
-recvMsgFromClient()
-
-serverToClient()
-
-interactWithConsole() // getting command from user
-
-
-
-
-*/
