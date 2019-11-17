@@ -190,15 +190,20 @@ char* msgToStr(struct message* msg){
 // deallocates all elements in this list
 void freeLst(struct siteLst* lst){
 	// if called on NULL, don't do anything
-	if(!lst){
+	if(lst == NULL){
 		return;
 	}
 
 	if(lst->next){
 		freeLst(lst->next);
+		free(lst->next);
+		lst->next = NULL;
 	}
-	free(lst->id);
-	free(lst);
+	if(lst->id != NULL){
+		free(lst->id);
+		lst->id = NULL;
+	}
+	
 	return;
 }
 
@@ -314,6 +319,8 @@ struct siteLst* updatePosition(struct siteLst* lst, char* sensorID, int SensorRa
 	// deallocate old list, if it exists
 	if(lst){
 		freeLst(lst);
+		free(lst);
+		lst = NULL;
 	}
 
 	char* msg = calloc(strlen("UPDATEPOSITION ")+1 + ID_LEN + INT_LEN*3 + 4, sizeof(char));
@@ -529,7 +536,7 @@ QUIT
 WHERE [SensorID/BaseID]
 
 */
-int interactWithConsole(char* sensorID, int sockfd, int SensorRange, struct siteLst** reachableSitesPtr, struct siteLst* knownLocations, 
+int interactWithConsole(char* sensorID, int sockfd, int SensorRange, struct siteLst** reachableSitesPtr, 
 				int* xPtr, int* yPtr){
 
 	struct siteLst* reachableSites = *reachableSitesPtr;
@@ -564,7 +571,7 @@ int interactWithConsole(char* sensorID, int sockfd, int SensorRange, struct site
 		*yPtr = newyPos;
 
 		// update position and send message to server
-		updatePosition(reachableSites, sensorID, SensorRange, newxPos, newyPos, sockfd);
+		reachableSites = updatePosition(reachableSites, sensorID, SensorRange, newxPos, newyPos, sockfd);
 		*reachableSitesPtr = reachableSites;
 
 		return 0;
@@ -653,7 +660,7 @@ int recvMsg(int sockfd, char* myID, struct siteLst** reachableSitesPtr, int xPos
 	// if this site is the destination
 	if(strcmp(m->destinationID, myID) == 0){
 		// print that message was properly received
-		printf("%s: Message from %s to %s successfully received\n", myID, m->originID, myID);
+		printf("%s: Message from %s to %s successfully received.\n", myID, m->originID, myID);
 		return 0;
 	}
 
@@ -724,35 +731,7 @@ int main(int argc, char * argv[]) {
 	struct siteLst* reachableSites = NULL;
 
 	// sends initial updatePosition message and initializes list of reachable sites
-	updatePosition(reachableSites, sensorID, SensorRange, xPos, yPos, sockfd);
-
-	// initialize list of all sites with known location
-	struct siteLst* knownLocations = NULL;
-	struct siteLst* tmpItr = NULL;
-
-	// copy reachableSites into knownLocations
-	for(struct siteLst* itr = reachableSites; itr != NULL; itr = itr->next){
-		// initialize first site, set knownLocations to the head permanently
-		if(knownLocations == NULL){
-			knownLocations = calloc(1, sizeof(struct siteLst));
-			tmpItr = knownLocations;
-		}
-		else{
-			tmpItr->next = calloc(1, sizeof(struct siteLst));
-			tmpItr = tmpItr->next;
-		}
-
-		// initialize name
-		tmpItr->id = calloc(ID_LEN, sizeof(char));
-		strcpy(tmpItr->id, itr->id);
-
-		// copy position
-		tmpItr->xPos = itr->xPos;
-		tmpItr->yPos = itr->yPos;
-	}
-
-
-	// ready to loop?
+	reachableSites = updatePosition(reachableSites, sensorID, SensorRange, xPos, yPos, sockfd);
 
 	// structure to hold a set of file descriptors to watch
 	fd_set rfds;
@@ -799,7 +778,7 @@ int main(int argc, char * argv[]) {
 
 		if(FD_ISSET(standardInput, &rfds)){
 			
-			int quit = interactWithConsole(sensorID, sockfd, SensorRange, &reachableSites, knownLocations, &xPos, &yPos);
+			int quit = interactWithConsole(sensorID, sockfd, SensorRange, &reachableSites, &xPos, &yPos);
 
 			// quit command received, release memory and close sockets
 			if(quit == 1){
@@ -809,7 +788,8 @@ int main(int argc, char * argv[]) {
 				sensorID = NULL;
 
 				freeLst(reachableSites);
-				freeLst(knownLocations);
+				free(reachableSites);
+				reachableSites = NULL;
 
 				return 0;
 

@@ -407,7 +407,7 @@ void setNextID(char* myID, struct message* m, struct siteLst* reachableSites){
 	struct siteLst* itr = reachableSites;
 	// loop over reachable sites and find site closest to destination that would not cause a cycle
 	while(itr != NULL){
-		
+
 		// flag representing whether or not site itr is on the hoplst
 		int skip = 0;
 
@@ -659,28 +659,6 @@ void* handleMessage(void* args){
 	struct client* cli = (struct client*)(((struct thread_args*)args)->cli);
 	int bytes = ((struct thread_args*)args)->bytesRead;
 	char* buf = ((struct thread_args*)args)->msg;
-
-	// client has disconnected
-	if(bytes == 0){
-		//printf("Client disconnected\n");
-		// need to remove client from clients list
-
-		for(int n = 0; n < MAX_CLIENTS; n++){
-			if(cli->fd == clientList[n].fd){
-				// set all fields to values representing no client
-				clientList[n].fd = NO_CLIENT;
-				clientList[n].site = NULL;
-				break;
-			}
-		}
-
-		//clientList[n].fd = NO_CLIENT;
-
-		free(buf);
-		free(cli);
-
-		return NULL;
-	}
 
 	// create message struct from string buffer
 	struct message* m = parseMsg(buf, bytes);
@@ -1153,6 +1131,33 @@ int main(int argc, char * argv[]) {
 				char* buf = calloc(msgSize, sizeof(char));
 
 				int bytes = read(args->cli->fd, buf, msgSize);
+
+				// client has disconnected
+				if(bytes == 0){
+
+					struct client* cli = args->cli;
+					//printf("Client disconnected\n");
+					// need to remove client from clients list
+
+					for(int n = 0; n < MAX_CLIENTS; n++){
+						if(cli->fd == clientList[n].fd){
+							// set all fields to values representing no client
+							close(clientList[n].fd);
+							clientList[n].fd = NO_CLIENT;
+							clientList[n].site = NULL;
+							break;
+						}
+					}
+
+					//clientList[n].fd = NO_CLIENT;
+
+					free(buf);
+					free(cli);
+					free(args);
+
+					continue;
+				}
+
 				args->bytesRead = bytes;
 				args->msg = buf;
 				pthread_create(&clientList[n].tid, NULL, handleMessage, (void*)args);
