@@ -212,8 +212,6 @@ void sendDataMsg(char* myID, int sockfd, struct message* m, struct siteLst* reac
 		return;
 	}
 
-	printf("Sending to %s at %d %d\n", dest->id, dest->xPos, dest->yPos);
-
 	// closest to dest, ties alphabetically
 	struct siteLst* closestSite = NULL;
 	int closestDist = INT_MAX;
@@ -223,14 +221,11 @@ void sendDataMsg(char* myID, int sockfd, struct message* m, struct siteLst* reac
 	// loop over reachable sites and find site closest to destination that would not cause a cycle
 	while(itr != NULL){
 
-		printf("Looking at site %s\n", itr->id);
-
 		// flag representing whether or not site itr is on the hoplst
 		int skip = 0;
 
 		for(struct hoplist* visited = m->hoplst; visited != NULL; visited = visited->next){
 			if(strcmp(itr->id, visited->id) == 0){
-				printf("Skipping site because hoplist\n");
 				skip = 1;
 				break;
 			}
@@ -245,13 +240,10 @@ void sendDataMsg(char* myID, int sockfd, struct message* m, struct siteLst* reac
 		// square of distance from itr to dest
 		int dist = (dest->xPos - itr->xPos)  * (dest->xPos - itr->xPos) + (dest->yPos - itr->yPos) * (dest->yPos - itr->yPos);
 
-		printf("Dist is %d\n", dist);
-
 		// update closest values
 		if(dist < closestDist){
 			closestSite = itr;
 			closestDist = dist;
-			printf("Updating closest\n");
 		}
 		// distance is equal, settle tie in lexicographical order
 		else if(dist == closestDist){
@@ -322,8 +314,6 @@ struct siteLst* updatePosition(struct siteLst* lst, char* sensorID, int SensorRa
 	char* msg = calloc(strlen("UPDATEPOSITION ")+1 + ID_LEN + INT_LEN*3 + 4, sizeof(char));
 	sprintf(msg, "UPDATEPOSITION %s %d %d %d ", sensorID, SensorRange, xPos, yPos);
 
-	printf("Message is: %s\n", msg);
-
 	int retno = write(fd, msg, strlen(msg)+1);
 	if (retno <= 0){
 		perror("updatePosition, write");
@@ -337,8 +327,6 @@ try_read:
 		perror("updatePosition, read");
 		exit(EXIT_FAILURE);
 	}
-
-	printf("read message: %s\n", msg);
 
 	if(retno < 10){
 		printf("Using goto, first byte is ");
@@ -795,8 +783,6 @@ int main(int argc, char * argv[]) {
 
 				freeLst(reachableSites);
 				freeLst(knownLocations);
-
-				printf("Quitting\n");
 
 				return 0;
 
