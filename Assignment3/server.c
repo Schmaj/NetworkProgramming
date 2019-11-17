@@ -407,8 +407,7 @@ void setNextID(char* myID, struct message* m, struct siteLst* reachableSites){
 	struct siteLst* itr = reachableSites;
 	// loop over reachable sites and find site closest to destination that would not cause a cycle
 	while(itr != NULL){
-		printf("while\n");
-
+		
 		// flag representing whether or not site itr is on the hoplst
 		int skip = 0;
 
