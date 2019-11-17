@@ -729,10 +729,10 @@ void* handleMessage(void* args){
 			perror("WHERE_MSG, Position");
 			exit(EXIT_FAILURE);
 		}
-		char* msgOut = calloc(ID_LEN*2 + 1, sizeof(char));
+		char* msgOut = calloc(ID_LEN*2 + 50, sizeof(char));
 		sprintf(msgOut, "THERE %s %d %d ", NodeID, XPosition, YPosition);
 		free(NodeID);
-		int retno = write(cli->fd, msgOut, strlen(msgOut)+2);
+		int retno = write(cli->fd, msgOut, strlen(msgOut)+1);
 		if (retno <= 0){
 			perror("WHERE, write");
 			exit(EXIT_FAILURE);

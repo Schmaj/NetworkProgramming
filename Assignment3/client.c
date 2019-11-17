@@ -470,15 +470,15 @@ int connectToServer(int sockfd, char* controlAddress, int controlPort){
 // returns dynamically allocated thereSite, siteLst of the requested site
 struct siteLst* where(int sockfd, struct siteLst* reachableSites, int xPos, int yPos, int SensorRange, char* whereID){
 
-	char* msg = calloc(2*ID_LEN + 1, sizeof(char));
+	char* msg = calloc(2*ID_LEN + 34, sizeof(char));
 	sprintf(msg, "WHERE %s ", whereID);
 	int retno = write(sockfd, msg, strlen(msg)+1);
 	if (retno <= 0){
 		perror("interactWithConsole, WHERE, write");
 		exit(EXIT_FAILURE);
 	}
-	memset(msg, 0, 2*ID_LEN + 2);
-	retno = read(sockfd, msg, 2*ID_LEN + 1);
+	memset(msg, 0, 2*ID_LEN + 31);
+	retno = read(sockfd, msg, 2*ID_LEN + 30);
 	if (retno <= 0){
 		perror("interactWithConsole, WHERE, read");
 		exit(EXIT_FAILURE);
