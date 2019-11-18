@@ -132,7 +132,8 @@ struct message * parseMsg(char * msg, int msgSize){
 		struct hoplist* iterator = retMsg->hoplst;
 
 		for (unsigned int i = 0; i < retMsg->hopLeng; ++i){
-			iterator->id = strtok(NULL, " ");
+			iterator->id = calloc(ID_LEN, sizeof(char));
+			strcpy(iterator->id, strtok(NULL, " "));
 			if (i == retMsg->hopLeng-1){
 				iterator->next = NULL;
 			} else {
@@ -141,10 +142,9 @@ struct message * parseMsg(char * msg, int msgSize){
 			}
 		}
 
-		free(cpy);
-	} else {
-		free(cpy);
 	}
+
+	free(cpy);
 	return retMsg;
 }
 

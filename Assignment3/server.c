@@ -387,6 +387,7 @@ void sendMsgOverSocket(struct message* m){
 	}
 
 	char* buf = msgToStr(m, "");
+	free(buf);
 
 	int bytes = write(sd, buf, strlen(buf)+1);
 
