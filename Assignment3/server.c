@@ -1136,6 +1136,8 @@ int main(int argc, char * argv[]) {
 				free(globalBaseStationList);
 				globalBaseStationList = NULL;
 				//TODO: free globalSiteList
+				freeLst(globalSiteList);
+				free(globalSiteList);
 
 				return 0;
 			}
