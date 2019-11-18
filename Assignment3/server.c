@@ -232,7 +232,11 @@ void initializeBaseStations(FILE* baseStationFile){
 		itr = itr->next;
 	}
 	fclose(baseStationFile);
-	if (line) free(line);
+	if (line){
+		free(line);
+		line = NULL;
+	}
+
 }
 
 /*
@@ -320,17 +324,19 @@ void freeMsg(struct message* m){
 	struct hoplist* l = m->hoplst;
 	while(l != NULL){
 
-		if(l->id){
-			//free(l->id);
+		if(l->id != NULL){
+			free(l->id);
 			l->id = NULL;
 		}
 
 		struct hoplist* tmp = l;
 		l = l->next;
 		free(tmp);
+		tmp = NULL;
 	}
 
 	free(m);
+	m = NULL;
 }
 
 // only called if next recipient is known and not a base station
@@ -617,7 +623,9 @@ char* getReachableList(char* id, int x, int y, int range){
 
 						// free memory
 						free(connectedItr->id);
+						connectedItr->id = NULL;
 						free(connectedItr);
+						connectedItr = NULL;
 
 					}
 
@@ -660,6 +668,7 @@ char* getReachableList(char* id, int x, int y, int range){
 	strcat(msg, reachList);
 
 	free(reachList);
+	reachList = NULL;
 
 	return msg;
 
@@ -684,7 +693,9 @@ void* handleMessage(void* args){
 			// message has been delivered, free memory and return
 			freeMsg(m);
 			free(cli);
+			cli = NULL;
 			free(buf);
+			buf = NULL;
 			return NULL;
 		}
 
@@ -701,7 +712,9 @@ void* handleMessage(void* args){
 
 				// message has been dealt with, return
 				free(cli);
+				cli = NULL;
 				free(buf);
+				buf = NULL;
 				return NULL;
 			}
 		}
@@ -738,12 +751,14 @@ void* handleMessage(void* args){
 		char* msgOut = calloc(ID_LEN*2 + 50, sizeof(char));
 		sprintf(msgOut, "THERE %s %d %d ", NodeID, XPosition, YPosition);
 		free(NodeID);
+		NodeID = NULL;
 		int retno = write(cli->fd, msgOut, strlen(msgOut)+1);
 		if (retno <= 0){
 			perror("WHERE, write");
 			exit(EXIT_FAILURE);
 		}
 		free(msgOut);
+		msgOut = NULL;
 	}
 	else if(strcmp(m->messageType, UPDATE_MSG) == 0){
 		//printf("begin update message\n");
@@ -821,13 +836,16 @@ void* handleMessage(void* args){
 		write(cli->fd, response, strlen(response)+1);
 
 		free(response);
+		response = NULL;
 
 
 	}
 
 
 	free(cli);
+	cli = NULL;
 	free(buf);
+	buf = NULL;
 	return NULL;
 }
 
@@ -1074,7 +1092,9 @@ int main(int argc, char * argv[]) {
 
 				close(listenerFd);
 				free(clientList);
+				clientList = NULL;
 				free(globalBaseStationList);
+				globalBaseStationList = NULL;
 				//TODO: free globalSiteList
 
 				return 0;
@@ -1166,8 +1186,11 @@ int main(int argc, char * argv[]) {
 					//clientList[n].fd = NO_CLIENT;
 
 					free(buf);
+					buf = NULL;
 					free(cli);
+					cli = NULL;
 					free(args);
+					args = NULL;
 
 					continue;
 				}
