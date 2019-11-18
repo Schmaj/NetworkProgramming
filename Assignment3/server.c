@@ -394,11 +394,9 @@ void sendMsgOverSocket(struct message* m){
 	if(bytes == 0){
 		perror("write() failed\n");
 	}
-	
+
 	free(buf);
 	freeMsg(m);
-
-
 }
 
 
