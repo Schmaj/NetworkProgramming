@@ -387,7 +387,6 @@ void sendMsgOverSocket(struct message* m){
 	}
 
 	char* buf = msgToStr(m, "");
-	free(buf);
 
 	int bytes = write(sd, buf, strlen(buf)+1);
 
@@ -396,6 +395,7 @@ void sendMsgOverSocket(struct message* m){
 		perror("write() failed\n");
 	}
 
+	free(buf);
 	freeMsg(m);
 
 

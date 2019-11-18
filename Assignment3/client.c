@@ -696,6 +696,8 @@ int recvMsg(int sockfd, char* myID, struct siteLst** reachableSitesPtr, int xPos
 	sendDataMsg(myID, sockfd, m, reachableSites, dest);
 	free(dest->id);
 	free(dest);
+	freeMsg(m);
+	free(buf);
 
 	return 0;
 }
