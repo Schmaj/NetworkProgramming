@@ -327,7 +327,10 @@ void updateSiteLst(char* sensorID, int xPosition, int yPosition){ // call that f
 
 // frees all dynamic memory in a message m, including m itself
 void freeMsg(struct message* m){
-	if(m->messageType){
+	if(m == NULL){
+		return;
+	}
+	if(m->messageType != NULL){
 		free(m->messageType);
 		m->messageType = NULL;
 	}
@@ -749,6 +752,15 @@ void* handleMessage(void* args){
 		// sends message to appropriate client
 		sendMsgOverSocket(m);
 
+		free(cli);
+		cli = NULL;
+		free(buf);
+		buf = NULL;
+
+		free(args);
+		args = NULL;
+		return NULL;
+
 
 	}
 	else if(strcmp(m->messageType, WHERE_MSG) == 0){
@@ -786,6 +798,17 @@ void* handleMessage(void* args){
 		}
 		free(msgOut);
 		msgOut = NULL;
+
+		freeMsg(m);
+		free(cli);
+		cli = NULL;
+		free(buf);
+		buf = NULL;
+
+		free(args);
+		args = NULL;
+		return NULL;
+
 	}
 	else if(strcmp(m->messageType, UPDATE_MSG) == 0){
 		//printf("begin update message\n");
@@ -867,6 +890,16 @@ void* handleMessage(void* args){
 
 		free(newId);
 		newId = NULL;
+
+		freeMsg(m);
+		free(cli);
+		cli = NULL;
+		free(buf);
+		buf = NULL;
+
+		free(args);
+		args = NULL;
+		return NULL;
 
 	}
 
