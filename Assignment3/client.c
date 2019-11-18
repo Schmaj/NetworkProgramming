@@ -630,6 +630,8 @@ int interactWithConsole(char* sensorID, int sockfd, int SensorRange, struct site
 
 		sendDataMsg(sensorID, sockfd, m, reachableSites, dest);
 		free(dest->id);
+		dest->id = NULL;
+		freeLst(dest);
 		free(dest);
 
 		// TODO free message
@@ -695,6 +697,8 @@ int recvMsg(int sockfd, char* myID, struct siteLst** reachableSitesPtr, int xPos
 
 	sendDataMsg(myID, sockfd, m, reachableSites, dest);
 	free(dest->id);
+	dest->id = NULL;
+	freeLst(dest);
 	free(dest);
 	freeMsg(m);
 	free(buf);
