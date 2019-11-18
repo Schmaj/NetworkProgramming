@@ -10,6 +10,6 @@ server.c: Receives connections from sensors(clients) to form a distributed senso
 	Reads data from a text file to initialize base station with their locations and connections to other base stations.
 	Can send data messages between sensors and base stations.
 
-Approximate Total Man Hours: 30 Hrs.
+Approximate Total Man Hours: 55 Hrs.
 
 Breakdown: 60% Conley, Andrew; 40% Schmalz, Jonathon
