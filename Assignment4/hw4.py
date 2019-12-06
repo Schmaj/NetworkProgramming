@@ -41,7 +41,24 @@ def getBucket(myId, otherId):
 
 	return index
 
+def printBuckets(list_of_lists_of_IDs):
+	for i in list_of_lists_of_IDs:
+		print("{}:".format(list_of_lists_of_IDs.index(i)), end='')
+		for j in i:
+			if j != -1:
+				print(" {}:{}".format(i.index(j), j), end='')
+		print()
 
+
+def bootstrap():
+
+def findNode():
+
+def findValue():
+
+def store():
+
+def quit():
 
 def run():
 	if len(sys.argv) != 4:
