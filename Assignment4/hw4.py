@@ -22,8 +22,9 @@ import csci4220_hw4_pb2_grpc
 
 class KadImpl(csci4220_hw4_pb2_grpc.KadImplServicer):
 
-	def __init__(self, k_buckets):
+	def __init__(self, k_buckets, dictionary):
 		self.k_buckets = k_buckets
+		self.dictionary = dictionary
 
 	def FindNode(self, request, context):
 
@@ -37,7 +38,7 @@ class KadImpl(csci4220_hw4_pb2_grpc.KadImplServicer):
 
 def serve(listener_port, k_buckets):
 	server = grpc.server(future.ThreadPoolExecuter(max_workers=10))
-	csci4220_hw4_pb2_grpc.add_KadImplServicer_to_server(KadImpl(k_buckets), server)
+	csci4220_hw4_pb2_grpc.add_KadImplServicer_to_server(KadImpl(k_buckets, dict()), server)
 	server.add_insecure_port('[::]:' + listener_port)
 	server.start()
 	server.wait_for_termination()
