@@ -20,7 +20,6 @@ import grpc
 import csci4220_hw4_pb2
 import csci4220_hw4_pb2_grpc
 
-
 def addNode(kbuckets, newNode, myId, k):
 
 	index = getBucket(myId, newNode.id)
@@ -76,8 +75,10 @@ def getNextClosest(kbuckets, prevDist, N, myId):
 
 #prints the k-buckets, stored in a list of lists of Nodes
 def printBuckets(k_buckets):
+
 	for i in k_buckets:
 		print("{}:".format(k_buckets.index(i)), end='')
+
 		for j in i:
 			print(" {}:{}".format(j.id, j.port), end='')
 		print()
@@ -87,6 +88,7 @@ def printBuckets(k_buckets):
 def bootstrap(remote_addr_string, remote_port_string, myId, k_buckets, k):
 	remote_addr = socket.gethostbyname(remote_addr_string)
 	remote_port = int(remote_port_string)
+
 	with grpc.insecure_channel(remote_addr + ':' + str(remote_port)) as channel:
 		try:
 			stub = csci4220_hw4_pb2_grpc.KadImplStub(channel)
@@ -94,9 +96,33 @@ def bootstrap(remote_addr_string, remote_port_string, myId, k_buckets, k):
 		except:
 			print("Try Failed in bootstrap")
 			return
+
+		responding_node = response.responding_node
+		found = False
+		for lst in k_buckets:
+			if responding_node in lst:
+				found = True
+				break
+		if not found:
+			addNode(responding_node)
+
 		nodeList = response.nodes
 		for node in nodeList:
+
+			if node.id == myId:
+				continue
+
+			found = False
+			for lst in k_buckets:
+				if node in lst:
+					found = True
+					break
+			if found:
+				continue
+
 			addNode(k_buckets, node, myId, k)
+
+
 		print("After BOOTSTRAP({}), k_buckets now look like:".format(response.responding_node.id))
 		printBuckets(k_buckets)
 
@@ -133,9 +159,11 @@ def store(key, value, k_buckets, k):
 #send Quit RPC to all nodes in k-buckets
 #if received, delete sender from k-bucket
 def quit(myId, k_buckets):
+
 	for lst in k_buckets:
 		for node in lst:
 			print("Letting {} know I'm quitting.".format(node.id))
+
 			with grpc.insecure_channel(node.addr + ':' + str(node.port)) as channel:
 				try:
 					stub = csci4220_hw4_pb2_grpc.KadImplStub(channel)
@@ -143,6 +171,7 @@ def quit(myId, k_buckets):
 				except:
 					print("Try Failed in quit")
 					pass
+
 	print("Shut down node {}".format(myId))
 
 #run the program
