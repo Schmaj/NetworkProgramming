@@ -21,14 +21,14 @@ import csci4220_hw4_pb2
 import csci4220_hw4_pb2_grpc
 
 
-def addNode(kbuckets, newId, k):
+def addNode(kbuckets, newNode, myId, k):
 
-	index = getBucket(myId, newId)
+	index = getBucket(myId, newNode.id)
 
 	if(len(kbuckets[index]) == k):
 		kbuckets[index].pop()
 
-	kbuckets[index].insert(0, newId)
+	kbuckets[index].insert(0, newNode)
 
 	return 0
 
@@ -58,18 +58,18 @@ def getNextClosest(kbuckets, prevDist, N, myId):
 	# smallest legal distance we have seen, initialize to largest possible distance
 	smallestDist = 2**N
 	# id corresponding to that smallest distance
-	smallestId = -1
+	smallestNode = -1
 
 	for i in range(N):
 		for node in kbuckets[i]:
-			dist = myId ^ node
+			dist = myId ^ node.id
 
 			if(dist > prevDist and dist < smallestDist):
 				smallestDist = dist
-				smallestId = node
+				smallestNode = node
 
-	if(smallestId != -1):
-		return smallestId
+	if(smallestNode != -1):
+		return smallestNode
 
 	return None
 
@@ -111,7 +111,7 @@ def findNode(nodeID, kbuckets, k, N, myId):
 		if(node == None):
 			break
 
-		prevDist = node ^ myId
+		prevDist = node.id ^ myId
 
 
 	
