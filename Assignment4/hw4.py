@@ -99,11 +99,15 @@ def bootstrap(remote_addr_string, remote_port_string, myId, k_buckets, k):
 	remote_addr = socket.gethostbyname(remote_addr_string)
 	remote_port = int(remote_port_string)
 	with grpc.insecure_channel(remote_addr + ':' + str(remote_port)) as channel:
-		stub = csci4220_hw4_pb2_grpc.KadImplStub(channel)
-		response = stub.FindNode(myId)
+		try:
+			stub = csci4220_hw4_pb2_grpc.KadImplStub(channel)
+			response = stub.FindNode(myId)
+		except:
+			print("Try Failed in bootstrap")
+			return
 		nodeList = response.nodes
 		for node in nodeList:
-			addNode(k_buckets, node, k)
+			addNode(k_buckets, node, myId, k)
 		print("After BOOTSTRAP({}), k_buckets now look like:".format(response.responding_node.id))
 		printBuckets(k_buckets)
 
@@ -156,11 +160,22 @@ def findNode(nodeID, kbuckets, k, N, myId):
 def findValue():
 
 #send Store RPC to single node with ID closest to key
-def store():
+def store(key, value, k_buckets, k):
 
 #send Quit RPC to all nodes in k-buckets
 #if received, delete sender from k-bucket
-def quit():
+def quit(myId, k_buckets):
+	for lst in k_buckets:
+		for node in lst:
+			print("Letting {} know I'm quitting.".format(node.id))
+			with grpc.insecure_channel(node.addr + ':' + str(node.port)) as channel:
+				try:
+					stub = csci4220_hw4_pb2_grpc.KadImplStub(channel)
+					response = stub.Quit(myId)
+				except:
+					print("Try Failed in quit")
+					pass
+	print("Shut down node {}".format(myId))
 
 #run the program
 def run():
