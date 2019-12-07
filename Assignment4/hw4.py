@@ -88,8 +88,12 @@ def bootstrap(remote_addr_string, remote_port_string, myId, k_buckets, k):
 	remote_addr = socket.gethostbyname(remote_addr_string)
 	remote_port = int(remote_port_string)
 	with grpc.insecure_channel(remote_addr + ':' + str(remote_port)) as channel:
-		stub = csci4220_hw4_pb2_grpc.KadImplStub(channel)
-		response = stub.FindNode(myId)
+		try:
+			stub = csci4220_hw4_pb2_grpc.KadImplStub(channel)
+			response = stub.FindNode(myId)
+		except:
+			print("Try Failed in bootstrap")
+			return
 		nodeList = response.nodes
 		for node in nodeList:
 			addNode(k_buckets, node, myId, k)
@@ -133,8 +137,12 @@ def quit(myId, k_buckets):
 		for node in lst:
 			print("Letting {} know I'm quitting.".format(node.id))
 			with grpc.insecure_channel(node.addr + ':' + str(node.port)) as channel:
-				stub = csci4220_hw4_pb2_grpc.KadImplStub(channel)
-				response = stub.Quit(myId)
+				try:
+					stub = csci4220_hw4_pb2_grpc.KadImplStub(channel)
+					response = stub.Quit(myId)
+				except:
+					print("Try Failed in quit")
+					pass
 	print("Shut down node {}".format(myId))
 
 #run the program
