@@ -223,7 +223,41 @@ def findNode(nodeID, kbuckets, k, N, meNode):
 def findValue():
 
 #send Store RPC to single node with ID closest to key
-def store(key, value, k_buckets, k):
+def store(key, value, k_buckets, k, meNode, storedDict):
+
+	minDist = meNode.id ^ key
+	minNode = meNode
+
+	# iterate over all known nodes to find node closest to the key
+	for bucket in k_buckets:
+		for node in bucket:
+			dist = node.id ^ key
+			if(dist < minDist):
+				minDist = dist
+				minNode = node
+
+	# if this node is the closest node, store the value locally
+	if(minNode.id == meNode.id):
+		print("Storing key %d value \"%s\"" % (meNode.id, value))
+
+		storedDict[key] = value
+		return
+
+
+	print("Storing key %d at node %d" % (key, minNode.id))
+
+	remote_addr = minNode.address
+	remote_port = minNode.port
+	with grpc.insecure_channel(remote_addr + ':' + str(remote_port)) as channel:
+		keyVal = csci4220_hw4_pb2_grpc.KeyValue(node = meNode, key = key, value = value)
+		try:
+			stub = csci4220_hw4_pb2_grpc.KadImplStub(channel)
+			response = stub.Store(keyVal)
+		except:
+			print("Try Failed in store")
+			return
+
+	return
 
 #send Quit RPC to all nodes in k-buckets
 #if received, delete sender from k-bucket
