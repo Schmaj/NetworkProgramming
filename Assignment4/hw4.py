@@ -385,9 +385,37 @@ class KadImpl(csci4220_hw4_pb2_grpc.KadImplServicer):
 
 
 	def FindValue(self, request, context):
-		print("Serving FindKey(<key>) request for <requesterID>")
+		key = request.idkey
+		print("Serving FindKey(%d) request for %d" % (key, request.node.id))
 
-		
+		# if we have the value, return it
+		if(key in self.dictionary):
+			keyVal = csci4220_hw4_pb2.KeyValue(node = self.meNode, key = key, value = self.dictionary[key])
+			return csci4220_hw4_pb2.KV_Node_Wrapper(responding_node = self.meNode, mode_kv = True, kv = keyVal, nodes = [])
+
+
+		nodeID = request.idKey
+
+		prevDist = -1
+		N = 4
+		nodeList = []
+
+		# go through each bucket and iterate over the nodes until we have seen k
+		for i in range(self.k):
+
+			node = getNextClosest(self.k_buckets, prevDist, N, nodeID)
+
+			# add "or node.id == request.idkey" for only sending good node
+			if(node == None):
+				break
+
+			# update prevDist for next getNextClosest call
+			prevDist = node.id ^ nodeID
+
+			nodeList.append(node)
+
+
+		return csci4220_hw4_pb2.NodeList(responding_node = self.meNode, nodes = nodeList)
 
 
 	def Store(self, request, context):
