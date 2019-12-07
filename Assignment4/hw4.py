@@ -51,6 +51,10 @@ def getBucket(myId, otherId):
 
 	return index
 
+# updates node node to be the most recent node in its k-bucket
+def makeMostRecent(node, kbuckets):
+
+
 # returns id of next closest node, or none if no nodes are further than prevdist
 def getNextClosest(kbuckets, prevDist, N, myId):
 
@@ -72,6 +76,13 @@ def getNextClosest(kbuckets, prevDist, N, myId):
 
 	return None
 
+
+# Takes an ID (use shared IDKey message type) and returns k nodes with
+# distance closest to ID requested
+#
+# sends FindNode rpc to recipient looking for id requestedId
+def rpcFindNode(recipient, requestedId):
+	return 0
 
 #prints the k-buckets, stored in a list of lists of Nodes
 def printBuckets(k_buckets):
@@ -132,6 +143,8 @@ def findNode(nodeID, kbuckets, k, N, myId):
 
 	prevDist = 0
 
+	sPrime = []
+
 	# go through each bucket and iterate over the nodes until we have seen k
 	for i in range(k):
 
@@ -140,12 +153,49 @@ def findNode(nodeID, kbuckets, k, N, myId):
 		if(node == None):
 			break
 
+		# update prevDist for next getNextClosest call
 		prevDist = node.id ^ myId
 
+		sPrime.append(node)
 
-	
+
+	# flag designating whether or not we have found the desired node
+	done = False
+
+	for node in sPrime:
+
+		result = rpcFindNode(node, nodeID)
+
+		makeMostRecent(node, kbuckets)
+
+
+		# add node returned in result list if we do not have it in our kbuckets
+		for resNode in result:
+			foundFlag = False
+			# if a node in the result is the node we are looking for, we found it
+			# don't stop here because we still want to update our k-buckets
+			if(resNode.id == nodeID):
+				done = True
+
+			for nodeList in kbuckets:
+				if(resNode in nodeList):
+					foundFlag = True
+					break
+
+			if(foundFlag == False):
+				addNode(kbuckets, resNode, myId, k)
+
+
+
 	print("After FIND_NODE command, k-buckets are:")
 	printBuckets(kbuckets)
+
+	if(done):
+		print("Found destination id %s" % nodeID)
+
+	else:
+		print("Could not find destination id %s" % nodeID)
+
 
 
 
