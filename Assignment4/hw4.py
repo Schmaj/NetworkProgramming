@@ -14,6 +14,7 @@
 from concurrent import futures
 import sys  # For sys.argv, sys.exit()
 import socket  # for gethostbyname()
+import threading # for threading
 
 import grpc
 
@@ -476,7 +477,9 @@ def run():
 	dictionary = dict()
 	meNode = csci4220_hw4_pb2.Node(id=local_id, port=int(my_port), address=my_address)
 
-	serve(my_port, k_buckets, dictionary, meNode, k)
+	t = threading.Thread(target=serve, args=(my_port, k_buckets, dictionary, meNode, k,))
+	t.start()
+	#serve(my_port, k_buckets, dictionary, meNode, k)
 
 	while(True):
 		command = input('').split()
@@ -490,14 +493,14 @@ def run():
 		elif command[0] == "FIND_NODE":
 			print("Before FIND_NODE command, k-buckets are:")
 			printBuckets(k_buckets)
-			findNode(command[1], k_buckets, k, 4, meNode)
+			findNode(int(command[1]), k_buckets, k, 4, meNode)
 			#nodeID, kbuckets, k, N, meNode
 
 		elif command[0] == "FIND_VALUE":
 			print("Before FIND_VALUE command, k-buckets are:")
 			printBuckets(k_buckets)
 
-			findValue(command[1], k_buckets, k, 4, meNode, dictionary)
+			findValue(int(command[1]), k_buckets, k, 4, meNode, dictionary)
 			#key, kbuckets, k, N, meNode, storedDict
 
 			print("After FIND_VALUE command, k-buckets are:")
@@ -505,7 +508,7 @@ def run():
 
 		#store(key, value, k_buckets, k, meNode, storedDict)
 		elif command[0] == "STORE":
-			key = command[1]
+			key = int(command[1])
 			value = command[2]
 			store(key, value, k_buckets, k, meNode, dictionary)
 
