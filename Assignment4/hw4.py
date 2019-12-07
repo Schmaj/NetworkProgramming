@@ -488,8 +488,20 @@ def run():
 			bootstrap(remote_addr_string, remote_port_string, meNode.id, meNode, k_buckets, k)
 
 		elif command[0] == "FIND_NODE":
+			print("Before FIND_NODE command, k-buckets are:")
+			printBuckets(k_buckets)
+			findNode(command[1], k_buckets, k, 4, meNode)
+			#nodeID, kbuckets, k, N, meNode
 
 		elif command[0] == "FIND_VALUE":
+			print("Before FIND_VALUE command, k-buckets are:")
+			printBuckets(k_buckets)
+
+			findValue(command[1], k_buckets, k, 4, meNode, dictionary)
+			#key, kbuckets, k, N, meNode, storedDict
+
+			print("After FIND_VALUE command, k-buckets are:")
+			printBuckets(k_buckets)
 
 		elif command[0] == "STORE":
 
