@@ -463,7 +463,11 @@ def run():
 
 		elif command[0] == "FIND_VALUE":
 
+		#store(key, value, k_buckets, k, meNode, storedDict)
 		elif command[0] == "STORE":
+			key = command[1]
+			value = command[2]
+			store(key, value, k_buckets, k, meNode, dictionary)
 
 		elif command[0] == "QUIT":
 			quit(meNode.id, meNode, k_buckets)
