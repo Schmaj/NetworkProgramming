@@ -53,7 +53,7 @@ def getBucket(myId, otherId):
 			break
 
 
-	return index
+	return index - 1
 
 # updates node node to be the most recent node in its k-bucket
 def makeMostRecent(node, kbuckets):
@@ -95,7 +95,7 @@ def rpcFindNode(recipient, requestedId, meNode):
 	remote_addr = recipient.address
 	remote_port = recipient.port
 	with grpc.insecure_channel(remote_addr + ':' + str(remote_port)) as channel:
-		idKey = csci4220_hw4_pb2_grpc.IDKey(node = meNode, idKey = requestedId)
+		idKey = csci4220_hw4_pb2.IDKey(node = meNode, idKey = requestedId)
 		try:
 			stub = csci4220_hw4_pb2_grpc.KadImplStub(channel)
 			response = stub.FindNode(idKey)
@@ -110,7 +110,7 @@ def rpcFindVal(recipient, requestedKey, meNode):
 	remote_addr = recipient.address
 	remote_port = recipient.port
 	with grpc.insecure_channel(remote_addr + ':' + str(remote_port)) as channel:
-		idKey = csci4220_hw4_pb2_grpc.IDKey(node = meNode, idKey = requestedKey)
+		idKey = csci4220_hw4_pb2.IDKey(node = meNode, idKey = requestedKey)
 		try:
 			stub = csci4220_hw4_pb2_grpc.KadImplStub(channel)
 			response = stub.FindValue(idKey)
@@ -319,7 +319,7 @@ def store(key, value, k_buckets, k, meNode, storedDict):
 	remote_addr = minNode.address
 	remote_port = minNode.port
 	with grpc.insecure_channel(remote_addr + ':' + str(remote_port)) as channel:
-		keyVal = csci4220_hw4_pb2_grpc.KeyValue(node = meNode, key = key, value = value)
+		keyVal = csci4220_hw4_pb2.KeyValue(node = meNode, key = key, value = value)
 		try:
 			stub = csci4220_hw4_pb2_grpc.KadImplStub(channel)
 			response = stub.Store(keyVal)
