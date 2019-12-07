@@ -184,13 +184,13 @@ def findNode(nodeID, kbuckets, k, N, meNode):
 	# go through each bucket and iterate over the nodes until we have seen k
 	for i in range(k):
 
-		node = getNextClosest(kbuckets, prevDist, N, myId)
+		node = getNextClosest(kbuckets, prevDist, N, nodeID)
 
 		if(node == None):
 			break
 
 		# update prevDist for next getNextClosest call
-		prevDist = node.id ^ myId
+		prevDist = node.id ^ nodeID
 
 		sPrime.append(node)
 
@@ -234,7 +234,59 @@ def findNode(nodeID, kbuckets, k, N, meNode):
 
 
 #like findNode(), but uses value instead of ID, updates k-buckets
-def findValue():
+# ends as soon as value is found, even if we haven't updated all buckets
+def findValue(key, kbuckets, k, N, meNode, storedDict):
+
+	# data found locally
+	if(key in storedDict):
+		print("Found data \"%s\" for key %d", % (storedDict[key], key))
+		return
+
+	myId = meNode.id
+
+	prevDist = 0
+
+	sPrime = []
+
+	# go through each bucket and iterate over the nodes until we have seen k
+	for i in range(k):
+
+		node = getNextClosest(kbuckets, prevDist, N, key)
+
+		if(node == None):
+			break
+
+		# update prevDist for next getNextClosest call
+		prevDist = node.id ^ key
+
+		sPrime.append(node)
+
+	for node in sPrime:
+
+		result = rpcFindVal(node, key, meNode)
+
+		makeMostRecent(node, kbuckets)
+
+		# if value was found and returned
+		if(result.mode_kv == True):
+			print("Found value \"%s\" for key %d" % (result.kv.value, result.kv.key))
+			break
+
+
+		# add node returned in result list if we do not have it in our kbuckets
+		for resNode in result:
+			foundFlag = False
+
+			for nodeList in kbuckets:
+				if(resNode in nodeList):
+					foundFlag = True
+					break
+
+			if(foundFlag == False):
+				addNode(kbuckets, resNode, myId, k)
+
+	print("Could not find key %d" % key)
+
 
 #send Store RPC to single node with ID closest to key
 def store(key, value, k_buckets, k, meNode, storedDict):
