@@ -41,13 +41,12 @@ def getBucket(myId, otherId):
 
 	return index
 
-#prints the k-buckets, stored in a list of lists of IDs
+#prints the k-buckets, stored in a list of lists of Nodes
 def printBuckets(k_buckets):
 	for i in k_buckets:
 		print("{}:".format(k_buckets.index(i)), end='')
 		for j in i:
-			if j != -1:
-				print(" {}:{}".format(i.index(j), j), end='')
+			print(" {}:{}".format(j.id, j.port), end='')
 		print()
 
 #connects nodes by exchanging ID, address, and port
@@ -58,12 +57,12 @@ def bootstrap(remote_addr_string, remote_port_string, myId, k_buckets):
 	with grpc.insecure_channel(remote_addr + ':' + str(remote_port)) as channel:
 		stub = csci4220_hw4_pb2_grpc.KadImplStub(channel)
 		response = stub.FindNode(myId)
-		nodeList = repsonse.nodes
+		nodeList = response.nodes
 		for node in nodeList:
 			addNode(node, k_buckets)
-		print("After BOOTSTRAP({}), k_buckets now look like:".format(response.resonding_node.id))
+		print("After BOOTSTRAP({}), k_buckets now look like:".format(response.responding_node.id))
 		printBuckets(k_buckets)
-		
+
 
 #attempts to find remote node, updates current node's k-buckets
 def findNode():
