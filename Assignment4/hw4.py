@@ -42,9 +42,9 @@ def getBucket(myId, otherId):
 	return index
 
 #prints the k-buckets, stored in a list of lists of IDs
-def printBuckets(list_of_lists_of_IDs):
-	for i in list_of_lists_of_IDs:
-		print("{}:".format(list_of_lists_of_IDs.index(i)), end='')
+def printBuckets(k_buckets):
+	for i in k_buckets:
+		print("{}:".format(k_buckets.index(i)), end='')
 		for j in i:
 			if j != -1:
 				print(" {}:{}".format(i.index(j), j), end='')
@@ -52,7 +52,7 @@ def printBuckets(list_of_lists_of_IDs):
 
 #connects nodes by exchanging ID, address, and port
 #sends remote node FindNode(thisNode)
-def bootstrap():
+def bootstrap(remote_addr_string, remote_port_string):
 
 #attempts to find remote node, updates current node's k-buckets
 def findNode():
