@@ -34,7 +34,16 @@ class KadImpl(csci4220_hw4_pb2_grpc.KadImplServicer):
 
 	def Quit(self, request, context):
 		quittingNode = request.node
-		
+		for i in range(len(self.k_buckets)):
+			if quittingNode in self.k_buckets[i]:
+				print("Evicting quitting node {} from bucket {}".format(quittingNode.id, i))
+				self.k_buckets[i].remove(quittingNode)
+				IDKey = csci4220_hw4_pb2.IDKey(node=quittingNode, idkey=quittingNode.idkey)
+				return IDKey
+		print("No record of quitting node {} in k-buckets.".format(quittingNode.id))
+		IDKey = csci4220_hw4_pb2.IDKey(node=quittingNode, idkey=quittingNode.idkey)
+		return IDKey
+
 
 def serve(listener_port, k_buckets, dictionary):
 	server = grpc.server(future.ThreadPoolExecuter(max_workers=10))
