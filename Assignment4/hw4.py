@@ -22,6 +22,9 @@ import csci4220_hw4_pb2_grpc
 
 class KadImpl(csci4220_hw4_pb2_grpc.KadImplServicer):
 
+	def __init__(self, k_buckets):
+		self.k_buckets = k_buckets
+
 	def FindNode(self, request, context):
 
 	def FindValue(self, request, context):
@@ -29,10 +32,12 @@ class KadImpl(csci4220_hw4_pb2_grpc.KadImplServicer):
 	def Store(self, request, context):
 
 	def Quit(self, request, context):
+		quittingNode = request.node
+		
 
-def serve(listener_port):
+def serve(listener_port, k_buckets):
 	server = grpc.server(future.ThreadPoolExecuter(max_workers=10))
-	csci4220_hw4_pb2_grpc.add_KadImplServicer_to_server(KadImpl(), server)
+	csci4220_hw4_pb2_grpc.add_KadImplServicer_to_server(KadImpl(k_buckets), server)
 	server.add_insecure_port('[::]:' + listener_port)
 	server.start()
 	server.wait_for_termination()
@@ -130,14 +135,15 @@ def printBuckets(k_buckets):
 
 #connects nodes by exchanging ID, address, and port
 #sends remote node FindNode(thisNode)
-def bootstrap(remote_addr_string, remote_port_string, myId, k_buckets, k):
+def bootstrap(remote_addr_string, remote_port_string, myId, meNode, k_buckets, k):
 	remote_addr = socket.gethostbyname(remote_addr_string)
 	remote_port = int(remote_port_string)
 
 	with grpc.insecure_channel(remote_addr + ':' + str(remote_port)) as channel:
 		try:
 			stub = csci4220_hw4_pb2_grpc.KadImplStub(channel)
-			response = stub.FindNode(myId)
+			request = csci4220_hw4_pb2.IDKey(node=meNode, idkey=myId)
+			response = stub.FindNode(request)
 		except:
 			print("Try Failed in bootstrap")
 			return
@@ -168,7 +174,8 @@ def bootstrap(remote_addr_string, remote_port_string, myId, k_buckets, k):
 			addNode(k_buckets, node, myId, k)
 
 		makeMostRecent(responding_node)
-		print("After BOOTSTRAP({}), k_buckets now look like:".format(response.responding_node.id))
+		print("After BOOTSTRAP({}), k_buckets now look like:".format(
+			response.responding_node.id))
 		printBuckets(k_buckets)
 
 
@@ -275,7 +282,7 @@ def store(key, value, k_buckets, k, meNode, storedDict):
 
 #send Quit RPC to all nodes in k-buckets
 #if received, delete sender from k-bucket
-def quit(myId, k_buckets):
+def quit(myId, meNode, k_buckets):
 
 	for lst in k_buckets:
 		for node in lst:
@@ -284,7 +291,8 @@ def quit(myId, k_buckets):
 			with grpc.insecure_channel(node.addr + ':' + str(node.port)) as channel:
 				try:
 					stub = csci4220_hw4_pb2_grpc.KadImplStub(channel)
-					response = stub.Quit(myId)
+					request = csci4220_hw4_pb2.IDKey(node=meNode, idkey=myId)
+					response = stub.Quit(request)
 				except:
 					print("Try Failed in quit")
 					pass
@@ -305,7 +313,7 @@ def run():
 
 	k_buckets = [[],[],[],[]]
 
-	serve(my_port)
+	serve(my_port, k_buckets)
 
 	''' Use the following code to convert a hostname to an IP and start a channel
 	Note that every stub needs a channel attached to it
