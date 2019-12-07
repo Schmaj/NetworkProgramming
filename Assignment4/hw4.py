@@ -278,7 +278,7 @@ def findValue(key, kbuckets, k, N, meNode, storedDict):
 
 
 		# add node returned in result list if we do not have it in our kbuckets
-		for resNode in result:
+		for resNode in result.nodes:
 			foundFlag = False
 
 			for nodeList in kbuckets:
@@ -308,7 +308,7 @@ def store(key, value, k_buckets, k, meNode, storedDict):
 
 	# if this node is the closest node, store the value locally
 	if(minNode.id == meNode.id):
-		print("Storing key %d value \"%s\"" % (meNode.id, value))
+		print("Storing key %d at node %d" % (key, meNode.id))
 
 		storedDict[key] = value
 		return
@@ -411,7 +411,7 @@ class KadImpl(csci4220_hw4_pb2_grpc.KadImplServicer):
 			return csci4220_hw4_pb2.KV_Node_Wrapper(responding_node = self.meNode, mode_kv = True, kv = keyVal, nodes = [])
 
 
-		nodeID = request.idKey
+		nodeID = request.idkey
 
 		prevDist = -1
 		N = 4
