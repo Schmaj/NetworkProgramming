@@ -36,9 +36,9 @@ class KadImpl(csci4220_hw4_pb2_grpc.KadImplServicer):
 		quittingNode = request.node
 		
 
-def serve(listener_port, k_buckets):
+def serve(listener_port, k_buckets, dictionary):
 	server = grpc.server(future.ThreadPoolExecuter(max_workers=10))
-	csci4220_hw4_pb2_grpc.add_KadImplServicer_to_server(KadImpl(k_buckets, dict()), server)
+	csci4220_hw4_pb2_grpc.add_KadImplServicer_to_server(KadImpl(k_buckets, dictionary), server)
 	server.add_insecure_port('[::]:' + listener_port)
 	server.start()
 	server.wait_for_termination()
@@ -380,8 +380,9 @@ def run():
 	my_address = socket.gethostbyname(my_hostname) # Gets my IP address from my hostname
 
 	k_buckets = [[],[],[],[]]
+	dictionary = dict()
 
-	serve(my_port, k_buckets)
+	serve(my_port, k_buckets, dictionary)
 
 	''' Use the following code to convert a hostname to an IP and start a channel
 	Note that every stub needs a channel attached to it
