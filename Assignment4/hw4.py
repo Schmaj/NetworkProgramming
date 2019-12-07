@@ -349,10 +349,11 @@ def quit(myId, meNode, k_buckets):
 
 class KadImpl(csci4220_hw4_pb2_grpc.KadImplServicer):
 
-	def __init__(self, k_buckets, dictionary, meNode):
+	def __init__(self, k_buckets, dictionary, meNode, k):
 		self.k_buckets = k_buckets
 		self.dictionary = dictionary
 		self.meNode = meNode
+		self.k = k
 
 	def FindNode(self, request, context):
 
@@ -375,9 +376,10 @@ class KadImpl(csci4220_hw4_pb2_grpc.KadImplServicer):
 		return IDKey
 
 
-def serve(listener_port, k_buckets, dictionary, meNode):
+def serve(listener_port, k_buckets, dictionary, meNode, k):
 	server = grpc.server(future.ThreadPoolExecuter(max_workers=10))
-	csci4220_hw4_pb2_grpc.add_KadImplServicer_to_server(KadImpl(k_buckets, dictionary, meNode), server)
+	csci4220_hw4_pb2_grpc.add_KadImplServicer_to_server(
+		KadImpl(k_buckets, dictionary, meNode, k), server)
 	server.add_insecure_port('[::]:' + listener_port)
 	server.start()
 	server.wait_for_termination()
@@ -398,7 +400,7 @@ def run():
 	dictionary = dict()
 	meNode = csci4220_hw4_pb2.Node(id=local_id, port=int(my_port), address=my_address)
 
-	serve(my_port, k_buckets, dictionary, meNode)
+	serve(my_port, k_buckets, dictionary, meNode, k)
 
 	''' Use the following code to convert a hostname to an IP and start a channel
 	Note that every stub needs a channel attached to it
