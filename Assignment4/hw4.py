@@ -240,7 +240,7 @@ def findValue(key, kbuckets, k, N, meNode, storedDict):
 
 	# data found locally
 	if(key in storedDict):
-		print("Found data \"%s\" for key %d", % (storedDict[key], key))
+		print("Found data \"%s\" for key %d" % (storedDict[key], key))
 		return
 
 	myId = meNode.id
