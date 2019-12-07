@@ -124,11 +124,18 @@ def findNode(nodeID, kbuckets, k, N, myId):
 def findValue():
 
 #send Store RPC to single node with ID closest to key
-def store():
+def store(key, value, k_buckets, k):
 
 #send Quit RPC to all nodes in k-buckets
 #if received, delete sender from k-bucket
-def quit():
+def quit(myId, k_buckets):
+	for lst in k_buckets:
+		for node in lst:
+			print("Letting {} know I'm quitting.".format(node.id))
+			with grpc.insecure_channel(node.addr + ':' + str(node.port)) as channel:
+				stub = csci4220_hw4_pb2_grpc.KadImplStub(channel)
+				response = stub.Quit(myId)
+	print("Shut down node {}".format(myId))
 
 #run the program
 def run():
