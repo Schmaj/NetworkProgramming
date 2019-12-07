@@ -53,6 +53,9 @@ def printBuckets(k_buckets):
 #connects nodes by exchanging ID, address, and port
 #sends remote node FindNode(thisNode)
 def bootstrap(remote_addr_string, remote_port_string):
+	remote_addr = socket.gethostbyname(remote_addr_string)
+	remote_port = int(remote_port_string)
+	channel = grpc.insecure_channel(remote_addr + ':' + str(remote_port))
 
 #attempts to find remote node, updates current node's k-buckets
 def findNode():
