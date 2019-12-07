@@ -53,7 +53,11 @@ def getBucket(myId, otherId):
 
 # updates node node to be the most recent node in its k-bucket
 def makeMostRecent(node, kbuckets):
-
+	for lst in kbuckets:
+		if node in lst:
+			lst.remove(node)
+			lst.insert(0,node)
+			break
 
 # returns id of next closest node, or none if no nodes are further than prevdist
 def getNextClosest(kbuckets, prevDist, N, myId):
@@ -133,7 +137,7 @@ def bootstrap(remote_addr_string, remote_port_string, myId, k_buckets, k):
 
 			addNode(k_buckets, node, myId, k)
 
-
+		makeMostRecent(responding_node)
 		print("After BOOTSTRAP({}), k_buckets now look like:".format(response.responding_node.id))
 		printBuckets(k_buckets)
 
