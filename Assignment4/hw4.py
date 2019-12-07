@@ -41,6 +41,7 @@ def getBucket(myId, otherId):
 
 	return index
 
+#prints the k-buckets, stored in a list of lists of IDs
 def printBuckets(list_of_lists_of_IDs):
 	for i in list_of_lists_of_IDs:
 		print("{}:".format(list_of_lists_of_IDs.index(i)), end='')
@@ -49,17 +50,24 @@ def printBuckets(list_of_lists_of_IDs):
 				print(" {}:{}".format(i.index(j), j), end='')
 		print()
 
-
+#connects nodes by exchanging ID, address, and port
+#sends remote node FindNode(thisNode)
 def bootstrap():
 
+#attempts to find remote node, updates current node's k-buckets
 def findNode():
 
+#like findNode(), but uses value instead of ID, updates k-buckets
 def findValue():
 
+#send Store RPC to single node with ID closest to key
 def store():
 
+#send Quit RPC to all nodes in k-buckets
+#if received, delete sender from k-bucket
 def quit():
 
+#run the program
 def run():
 	if len(sys.argv) != 4:
 		print("Error, correct usage is {} [my id] [my port] [k]".format(sys.argv[0]))
