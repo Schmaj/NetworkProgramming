@@ -503,7 +503,11 @@ def run():
 			print("After FIND_VALUE command, k-buckets are:")
 			printBuckets(k_buckets)
 
+		#store(key, value, k_buckets, k, meNode, storedDict)
 		elif command[0] == "STORE":
+			key = command[1]
+			value = command[2]
+			store(key, value, k_buckets, k, meNode, dictionary)
 
 		elif command[0] == "QUIT":
 			quit(meNode.id, meNode, k_buckets)
