@@ -92,7 +92,7 @@ def bootstrap(remote_addr_string, remote_port_string, myId, k_buckets, k):
 		response = stub.FindNode(myId)
 		nodeList = response.nodes
 		for node in nodeList:
-			addNode(k_buckets, node, k)
+			addNode(k_buckets, node, myId, k)
 		print("After BOOTSTRAP({}), k_buckets now look like:".format(response.responding_node.id))
 		printBuckets(k_buckets)
 
