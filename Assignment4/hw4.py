@@ -449,10 +449,10 @@ class KadImpl(csci4220_hw4_pb2_grpc.KadImplServicer):
 			if quittingNode in self.k_buckets[i]:
 				print("Evicting quitting node {} from bucket {}".format(quittingNode.id, i))
 				self.k_buckets[i].remove(quittingNode)
-				IDKey = csci4220_hw4_pb2.IDKey(node=quittingNode, idkey=quittingNode.idkey)
+				IDKey = csci4220_hw4_pb2.IDKey(node=quittingNode, idkey=quittingNode.id)
 				return IDKey
 		print("No record of quitting node {} in k-buckets.".format(quittingNode.id))
-		IDKey = csci4220_hw4_pb2.IDKey(node=quittingNode, idkey=quittingNode.idkey)
+		IDKey = csci4220_hw4_pb2.IDKey(node=quittingNode, idkey=quittingNode.id)
 		return IDKey
 
 
