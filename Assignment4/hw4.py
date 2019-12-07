@@ -361,6 +361,21 @@ class KadImpl(csci4220_hw4_pb2_grpc.KadImplServicer):
 		print("Storing key %d value \"%s\"" % (request.key, request.value))
 		self.dictionary[request.key] = request.value
 
+		# loop over nodes in k_buckets to see if this node is already there
+		foundNode = False
+		for bucket in self.k_buckets:
+			for node in bucket:
+				if(node.id == request.node.id):
+					foundNode = True
+					break
+
+		# if node is in buckets, make it most recent
+		if(foundNode == True):
+			makeMostRecent(request.node, self.k_buckets)
+		#else add to buckets
+		else:
+			addNode(self.k_buckets, request.node, self.meNode.id, self.k)
+
 	def Quit(self, request, context):
 		quittingNode = request.node
 		for i in range(len(self.k_buckets)):
