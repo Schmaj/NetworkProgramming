@@ -20,39 +20,6 @@ import grpc
 import csci4220_hw4_pb2
 import csci4220_hw4_pb2_grpc
 
-class KadImpl(csci4220_hw4_pb2_grpc.KadImplServicer):
-
-	def __init__(self, k_buckets, dictionary):
-		self.k_buckets = k_buckets
-		self.dictionary = dictionary
-
-	def FindNode(self, request, context):
-
-	def FindValue(self, request, context):
-
-	def Store(self, request, context):
-		print("Storing key %d value \"%s\"" % (request.key, request.value))
-		self.dictionary[request.key] = request.value
-
-	def Quit(self, request, context):
-		quittingNode = request.node
-		for i in range(len(self.k_buckets)):
-			if quittingNode in self.k_buckets[i]:
-				print("Evicting quitting node {} from bucket {}".format(quittingNode.id, i))
-				self.k_buckets[i].remove(quittingNode)
-				IDKey = csci4220_hw4_pb2.IDKey(node=quittingNode, idkey=quittingNode.idkey)
-				return IDKey
-		print("No record of quitting node {} in k-buckets.".format(quittingNode.id))
-		IDKey = csci4220_hw4_pb2.IDKey(node=quittingNode, idkey=quittingNode.idkey)
-		return IDKey
-
-
-def serve(listener_port, k_buckets, dictionary):
-	server = grpc.server(future.ThreadPoolExecuter(max_workers=10))
-	csci4220_hw4_pb2_grpc.add_KadImplServicer_to_server(KadImpl(k_buckets, dictionary), server)
-	server.add_insecure_port('[::]:' + listener_port)
-	server.start()
-	server.wait_for_termination()
 
 def addNode(kbuckets, newNode, myId, k):
 
@@ -377,6 +344,42 @@ def quit(myId, meNode, k_buckets):
 					pass
 
 	print("Shut down node {}".format(myId))
+
+
+
+class KadImpl(csci4220_hw4_pb2_grpc.KadImplServicer):
+
+	def __init__(self, k_buckets, dictionary):
+		self.k_buckets = k_buckets
+		self.dictionary = dictionary
+
+	def FindNode(self, request, context):
+
+	def FindValue(self, request, context):
+
+	def Store(self, request, context):
+		print("Storing key %d value \"%s\"" % (request.key, request.value))
+		self.dictionary[request.key] = request.value
+
+	def Quit(self, request, context):
+		quittingNode = request.node
+		for i in range(len(self.k_buckets)):
+			if quittingNode in self.k_buckets[i]:
+				print("Evicting quitting node {} from bucket {}".format(quittingNode.id, i))
+				self.k_buckets[i].remove(quittingNode)
+				IDKey = csci4220_hw4_pb2.IDKey(node=quittingNode, idkey=quittingNode.idkey)
+				return IDKey
+		print("No record of quitting node {} in k-buckets.".format(quittingNode.id))
+		IDKey = csci4220_hw4_pb2.IDKey(node=quittingNode, idkey=quittingNode.idkey)
+		return IDKey
+
+
+def serve(listener_port, k_buckets, dictionary):
+	server = grpc.server(future.ThreadPoolExecuter(max_workers=10))
+	csci4220_hw4_pb2_grpc.add_KadImplServicer_to_server(KadImpl(k_buckets, dictionary), server)
+	server.add_insecure_port('[::]:' + listener_port)
+	server.start()
+	server.wait_for_termination()
 
 #run the program
 def run():
