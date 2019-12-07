@@ -95,7 +95,7 @@ def rpcFindNode(recipient, requestedId, meNode):
 	remote_addr = recipient.address
 	remote_port = recipient.port
 	with grpc.insecure_channel(remote_addr + ':' + str(remote_port)) as channel:
-		idKey = csci4220_hw4_pb2.IDKey(node = meNode, idKey = requestedId)
+		idKey = csci4220_hw4_pb2.IDKey(node = meNode, idkey = requestedId)
 		try:
 			stub = csci4220_hw4_pb2_grpc.KadImplStub(channel)
 			response = stub.FindNode(idKey)
