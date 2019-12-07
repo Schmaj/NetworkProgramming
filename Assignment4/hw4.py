@@ -323,6 +323,7 @@ def store(key, value, k_buckets, k, meNode, storedDict):
 		try:
 			stub = csci4220_hw4_pb2_grpc.KadImplStub(channel)
 			response = stub.Store(keyVal)
+			makeMostRecent(minNode, k_buckets)
 		except:
 			print("Try Failed in store")
 			return
