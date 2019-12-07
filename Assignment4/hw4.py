@@ -20,6 +20,23 @@ import grpc
 import csci4220_hw4_pb2
 import csci4220_hw4_pb2_grpc
 
+class KadImpl(csci4220_hw4_pb2_grpc.KadImplServicer):
+
+	def FindNode(self, request, context):
+
+	def FindValue(self, request, context):
+
+	def Store(self, request, context):
+
+	def Quit(self, request, context):
+
+def serve(listener_port):
+	server = grpc.server(future.ThreadPoolExecuter(max_workers=10))
+	csci4220_hw4_pb2_grpc.add_KadImplServicer_to_server(KadImpl(), server)
+	server.add_insecure_port('[::]:' + listener_port)
+	server.start()
+	server.wait_for_termination()
+
 def addNode(kbuckets, newNode, myId, k):
 
 	index = getBucket(myId, newNode.id)
@@ -216,9 +233,6 @@ def findNode(nodeID, kbuckets, k, N, meNode):
 		print("Could not find destination id %s" % nodeID)
 
 
-
-
-
 #like findNode(), but uses value instead of ID, updates k-buckets
 def findValue():
 
@@ -254,6 +268,8 @@ def run():
 	k = int(sys.argv[3])
 	my_hostname = socket.gethostname() # Gets my host name
 	my_address = socket.gethostbyname(my_hostname) # Gets my IP address from my hostname
+
+	serve(my_port)
 
 	''' Use the following code to convert a hostname to an IP and start a channel
 	Note that every stub needs a channel attached to it
