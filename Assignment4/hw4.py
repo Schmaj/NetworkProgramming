@@ -382,6 +382,19 @@ class KadImpl(csci4220_hw4_pb2_grpc.KadImplServicer):
 			nodeList.append(node)
 
 
+		found = False
+
+		for bucket in self.k_buckets:
+			for node in bucket:
+				if(node.id == request.node.id):
+					found = True
+					break
+
+		if(found == True):
+			makeMostRecent(request.node, self.k_buckets)
+		else:
+			addNode(self.k_buckets, request.node, self.meNode.id, self.k)
+
 
 		return csci4220_hw4_pb2.NodeList(responding_node = self.meNode, nodes = nodeList)
 		# nodeID, kbuckets, k, N, meNode
@@ -417,6 +430,20 @@ class KadImpl(csci4220_hw4_pb2_grpc.KadImplServicer):
 			prevDist = node.id ^ nodeID
 
 			nodeList.append(node)
+
+
+		found = False
+
+		for bucket in self.k_buckets:
+			for node in bucket:
+				if(node.id == request.node.id):
+					found = True
+					break
+
+		if(found == True):
+			makeMostRecent(request.node, self.k_buckets)
+		else:
+			addNode(self.k_buckets, request.node, self.meNode.id, self.k)
 
 
 		return csci4220_hw4_pb2.NodeList(responding_node = self.meNode, nodes = nodeList)
