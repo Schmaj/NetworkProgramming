@@ -31,6 +31,8 @@ class KadImpl(csci4220_hw4_pb2_grpc.KadImplServicer):
 	def FindValue(self, request, context):
 
 	def Store(self, request, context):
+		print("Storing key %d value \"%s\"" % (request.key, request.value))
+		self.dictionary[request.key] = request.value
 
 	def Quit(self, request, context):
 		quittingNode = request.node
