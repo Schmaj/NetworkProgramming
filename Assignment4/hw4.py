@@ -359,6 +359,7 @@ class KadImpl(csci4220_hw4_pb2_grpc.KadImplServicer):
 
 	def FindValue(self, request, context):
 
+
 	def Store(self, request, context):
 		print("Storing key %d value \"%s\"" % (request.key, request.value))
 		self.dictionary[request.key] = request.value
@@ -401,6 +402,25 @@ def run():
 	meNode = csci4220_hw4_pb2.Node(id=local_id, port=int(my_port), address=my_address)
 
 	serve(my_port, k_buckets, dictionary, meNode, k)
+
+	while(True):
+		command = input('').split()
+
+		#bootstrap(remote_addr_string, remote_port_string, myId, meNode, k_buckets, k):
+		if command[0] == "BOOTSTRAP":
+			remote_addr_string = command[1]
+			remote_port_string = command[2]
+			bootstrap(remote_addr_string, remote_port_string, meNode.id, meNode, k_buckets, k)
+
+		elif command[0] == "FIND_NODE":
+
+		elif command[0] == "FIND_VALUE":
+
+		elif command[0] == "STORE":
+
+		elif command[0] == "QUIT":
+			quit(meNode.id, meNode, k_buckets)
+			break
 
 	''' Use the following code to convert a hostname to an IP and start a channel
 	Note that every stub needs a channel attached to it
