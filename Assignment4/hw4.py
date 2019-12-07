@@ -110,7 +110,7 @@ def rpcFindVal(recipient, requestedKey, meNode):
 	remote_addr = recipient.address
 	remote_port = recipient.port
 	with grpc.insecure_channel(remote_addr + ':' + str(remote_port)) as channel:
-		idKey = csci4220_hw4_pb2.IDKey(node = meNode, idKey = requestedKey)
+		idKey = csci4220_hw4_pb2.IDKey(node = meNode, idkey = requestedKey)
 		try:
 			stub = csci4220_hw4_pb2_grpc.KadImplStub(channel)
 			response = stub.FindValue(idKey)
@@ -274,7 +274,7 @@ def findValue(key, kbuckets, k, N, meNode, storedDict):
 		# if value was found and returned
 		if(result.mode_kv == True):
 			print("Found value \"%s\" for key %d" % (result.kv.value, result.kv.key))
-			break
+			return
 
 
 		# add node returned in result list if we do not have it in our kbuckets
@@ -337,13 +337,13 @@ def quit(myId, meNode, k_buckets):
 		for node in lst:
 			print("Letting {} know I'm quitting.".format(node.id))
 
-			with grpc.insecure_channel(node.addr + ':' + str(node.port)) as channel:
+			with grpc.insecure_channel(node.address + ':' + str(node.port)) as channel:
 				try:
 					stub = csci4220_hw4_pb2_grpc.KadImplStub(channel)
 					request = csci4220_hw4_pb2.IDKey(node=meNode, idkey=myId)
 					response = stub.Quit(request)
 				except:
-					print("Try Failed in quit")
+					#print("Try Failed in quit")
 					pass
 
 	print("Shut down node {}".format(myId))
@@ -440,7 +440,7 @@ class KadImpl(csci4220_hw4_pb2_grpc.KadImplServicer):
 		#else add to buckets
 		else:
 			addNode(self.k_buckets, request.node, self.meNode.id, self.k)
-		IDKey = csci4220_hw4_pb2.IDKey(node=meNode, idkey=meNode.id)
+		IDKey = csci4220_hw4_pb2.IDKey(node=self.meNode, idkey=self.meNode.id)
 		return IDKey
 
 	def Quit(self, request, context):
