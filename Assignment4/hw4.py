@@ -96,7 +96,7 @@ def rpcFindNode(recipient, requestedId, meNode):
 			stub = csci4220_hw4_pb2_grpc.KadImplStub(channel)
 			response = stub.FindNode(idKey)
 		except:
-			print("Try Failed in bootstrap")
+			print("Try Failed in rpcFindNode")
 			return
 
 	return response.nodes
