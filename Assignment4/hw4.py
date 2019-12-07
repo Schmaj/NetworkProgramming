@@ -436,6 +436,8 @@ class KadImpl(csci4220_hw4_pb2_grpc.KadImplServicer):
 		#else add to buckets
 		else:
 			addNode(self.k_buckets, request.node, self.meNode.id, self.k)
+		IDKey = csci4220_hw4_pb2.IDKey(node=meNode, idkey=meNode.id)
+		return IDKey
 
 	def Quit(self, request, context):
 		quittingNode = request.node
