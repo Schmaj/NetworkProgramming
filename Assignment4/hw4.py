@@ -121,10 +121,10 @@ def rpcFindNode(recipient, requestedId, meNode):
 #prints the k-buckets, stored in a list of lists of Nodes
 def printBuckets(k_buckets):
 
-	for i in k_buckets:
-		print("{}:".format(k_buckets.index(i)), end='')
+	for i in range(len(k_buckets)):
+		print("{}:".format(i), end='')
 
-		for j in i:
+		for j in k_buckets[i]:
 			print(" {}:{}".format(j.id, j.port), end='')
 		print()
 
@@ -302,6 +302,8 @@ def run():
 	k = int(sys.argv[3])
 	my_hostname = socket.gethostname() # Gets my host name
 	my_address = socket.gethostbyname(my_hostname) # Gets my IP address from my hostname
+
+	k_buckets = [[],[],[],[]]
 
 	serve(my_port)
 
