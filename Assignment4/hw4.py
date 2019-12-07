@@ -37,6 +37,8 @@ def addNode(kbuckets, newNode, myId, k):
 def getBucket(myId, otherId):
 	index = 0
 
+	N = 4
+
 	distance = myId ^ otherId
 
 	# we store our own id in bucket 0
@@ -150,7 +152,7 @@ def bootstrap(remote_addr_string, remote_port_string, myId, meNode, k_buckets, k
 				found = True
 				break
 		if not found:
-			addNode(responding_node)
+			addNode(k_buckets, responding_node, myId, k)
 
 		nodeList = response.nodes
 		for node in nodeList:
@@ -168,7 +170,7 @@ def bootstrap(remote_addr_string, remote_port_string, myId, meNode, k_buckets, k
 
 			addNode(k_buckets, node, myId, k)
 
-		makeMostRecent(responding_node)
+		makeMostRecent(responding_node, k_buckets)
 		print("After BOOTSTRAP({}), k_buckets now look like:".format(
 			response.responding_node.id))
 		printBuckets(k_buckets)
@@ -359,7 +361,7 @@ class KadImpl(csci4220_hw4_pb2_grpc.KadImplServicer):
 	def FindNode(self, request, context):
 		print("Serving FindNode(%d) request for %d" % (request.idkey, request.node.id))
 
-		nodeID = request.idKey
+		nodeID = request.idkey
 
 		prevDist = -1
 		N = 4
@@ -378,6 +380,7 @@ class KadImpl(csci4220_hw4_pb2_grpc.KadImplServicer):
 			prevDist = node.id ^ nodeID
 
 			nodeList.append(node)
+
 
 
 		return csci4220_hw4_pb2.NodeList(responding_node = self.meNode, nodes = nodeList)
@@ -477,7 +480,7 @@ def run():
 	dictionary = dict()
 	meNode = csci4220_hw4_pb2.Node(id=local_id, port=int(my_port), address=my_address)
 
-	t = threading.Thread(target=serve, args=(my_port, k_buckets, dictionary, meNode, k,))
+	t = threading.Thread(target=serve, args=(my_port, k_buckets, dictionary, meNode, k,), daemon = True)
 	t.start()
 	#serve(my_port, k_buckets, dictionary, meNode, k)
 
@@ -514,6 +517,7 @@ def run():
 
 		elif command[0] == "QUIT":
 			quit(meNode.id, meNode, k_buckets)
+			sys.exit()
 			break
 
 	''' Use the following code to convert a hostname to an IP and start a channel
