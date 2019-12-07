@@ -85,8 +85,21 @@ def getNextClosest(kbuckets, prevDist, N, myId):
 # distance closest to ID requested
 #
 # sends FindNode rpc to recipient looking for id requestedId
-def rpcFindNode(recipient, requestedId):
-	return 0
+# returns only nodelist from response
+def rpcFindNode(recipient, requestedId, meNode):
+
+	remote_addr = recipient.address
+	remote_port = recipient.port
+	with grpc.insecure_channel(remote_addr + ':' + str(remote_port)) as channel:
+		idKey = csci4220_hw4_pb2_grpc.IDKey(node = meNode, idKey = requestedId)
+		try:
+			stub = csci4220_hw4_pb2_grpc.KadImplStub(channel)
+			response = stub.FindNode(idKey)
+		except:
+			print("Try Failed in bootstrap")
+			return
+
+	return response.nodes
 
 #prints the k-buckets, stored in a list of lists of Nodes
 def printBuckets(k_buckets):
@@ -143,7 +156,9 @@ def bootstrap(remote_addr_string, remote_port_string, myId, k_buckets, k):
 
 
 #attempts to find remote node, updates current node's k-buckets
-def findNode(nodeID, kbuckets, k, N, myId):
+def findNode(nodeID, kbuckets, k, N, meNode):
+
+	myId = meNode.id
 
 	prevDist = 0
 
@@ -168,7 +183,7 @@ def findNode(nodeID, kbuckets, k, N, myId):
 
 	for node in sPrime:
 
-		result = rpcFindNode(node, nodeID)
+		result = rpcFindNode(node, nodeID, meNode)
 
 		makeMostRecent(node, kbuckets)
 
