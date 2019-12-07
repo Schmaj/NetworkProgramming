@@ -21,6 +21,17 @@ import csci4220_hw4_pb2
 import csci4220_hw4_pb2_grpc
 
 
+def addNode(kbuckets, newId, k):
+
+	index = getBucket(myId, newId)
+
+	if(len(kbuckets[index]) == k):
+		kbuckets[index].pop()
+
+	kbuckets[index].insert(0, newId)
+
+	return 0
+
 # takes in our id and target id and returns bucket index
 def getBucket(myId, otherId):
 	index = 0
@@ -41,6 +52,28 @@ def getBucket(myId, otherId):
 
 	return index
 
+# returns id of next closest node, or none if no nodes are further than prevdist
+def getNextClosest(kbuckets, prevDist, N, myId):
+
+	# smallest legal distance we have seen, initialize to largest possible distance
+	smallestDist = 2**N
+	# id corresponding to that smallest distance
+	smallestId = -1
+
+	for i in range(N):
+		for node in kbuckets[i]:
+			dist = myId ^ node
+
+			if(dist > prevDist and dist < smallestDist):
+				smallestDist = dist
+				smallestId = node
+
+	if(smallestId != -1):
+		return smallestId
+
+	return None
+
+
 #prints the k-buckets, stored in a list of lists of Nodes
 def printBuckets(k_buckets):
 	for i in k_buckets:
@@ -51,7 +84,7 @@ def printBuckets(k_buckets):
 
 #connects nodes by exchanging ID, address, and port
 #sends remote node FindNode(thisNode)
-def bootstrap(remote_addr_string, remote_port_string, myId, k_buckets):
+def bootstrap(remote_addr_string, remote_port_string, myId, k_buckets, k):
 	remote_addr = socket.gethostbyname(remote_addr_string)
 	remote_port = int(remote_port_string)
 	with grpc.insecure_channel(remote_addr + ':' + str(remote_port)) as channel:
@@ -59,13 +92,33 @@ def bootstrap(remote_addr_string, remote_port_string, myId, k_buckets):
 		response = stub.FindNode(myId)
 		nodeList = response.nodes
 		for node in nodeList:
-			addNode(node, k_buckets)
+			addNode(k_buckets, node, k)
 		print("After BOOTSTRAP({}), k_buckets now look like:".format(response.responding_node.id))
 		printBuckets(k_buckets)
 
 
 #attempts to find remote node, updates current node's k-buckets
-def findNode():
+def findNode(nodeID, kbuckets, k, N, myId):
+
+	prevDist = 0
+
+	# go through each bucket and iterate over the nodes until we have seen k
+	for i in range(k):
+
+		node = getNextClosest(kbuckets, prevDist, N, myId)
+
+		if(node == None):
+			break
+
+		prevDist = node ^ myId
+
+
+	
+	print("After FIND_NODE command, k-buckets are:")
+	printBuckets(kbuckets)
+
+
+
 
 #like findNode(), but uses value instead of ID, updates k-buckets
 def findValue():
