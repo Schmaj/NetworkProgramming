@@ -21,7 +21,13 @@ import grpc
 import csci4220_hw4_pb2
 import csci4220_hw4_pb2_grpc
 
-
+'''
+Add newNode to kbuckets
+Arg kbuckets: The list of lists containing saved nodes
+Arg newNode: Node to add to kbuckets
+Arg myId: ID of this this program's node
+Arg k: size of kbuckets
+'''
 def addNode(kbuckets, newNode, myId, k):
 
 	index = getBucket(myId, newNode.id)
@@ -105,6 +111,7 @@ def rpcFindNode(recipient, requestedId, meNode):
 
 	return response.nodes
 
+#Same as above, but for Find_Value RPC
 def rpcFindVal(recipient, requestedKey, meNode):
 
 	remote_addr = recipient.address
@@ -136,7 +143,9 @@ def bootstrap(remote_addr_string, remote_port_string, myId, meNode, k_buckets, k
 	remote_addr = socket.gethostbyname(remote_addr_string)
 	remote_port = int(remote_port_string)
 
+	#set up RPC channel
 	with grpc.insecure_channel(remote_addr + ':' + str(remote_port)) as channel:
+		#Set up stub, send message, get response
 		try:
 			stub = csci4220_hw4_pb2_grpc.KadImplStub(channel)
 			request = csci4220_hw4_pb2.IDKey(node=meNode, idkey=myId)
@@ -145,6 +154,7 @@ def bootstrap(remote_addr_string, remote_port_string, myId, meNode, k_buckets, k
 			print("Try Failed in bootstrap")
 			return
 
+		#add responding node if not in kbuckets
 		responding_node = response.responding_node
 		found = False
 		for lst in k_buckets:
@@ -154,6 +164,7 @@ def bootstrap(remote_addr_string, remote_port_string, myId, meNode, k_buckets, k
 		if not found:
 			addNode(k_buckets, responding_node, myId, k)
 
+		#add new nodes to kbuckets
 		nodeList = response.nodes
 		for node in nodeList:
 
@@ -170,6 +181,7 @@ def bootstrap(remote_addr_string, remote_port_string, myId, meNode, k_buckets, k
 
 			addNode(k_buckets, node, myId, k)
 
+		#make the responding node the most recently used
 		makeMostRecent(responding_node, k_buckets)
 		print("After BOOTSTRAP({}), k_buckets now look like:".format(
 			response.responding_node.id))
@@ -316,6 +328,7 @@ def store(key, value, k_buckets, k, meNode, storedDict):
 
 	print("Storing key %d at node %d" % (key, minNode.id))
 
+	#Set up RPC and send Store RPC to proper node
 	remote_addr = minNode.address
 	remote_port = minNode.port
 	with grpc.insecure_channel(remote_addr + ':' + str(remote_port)) as channel:
