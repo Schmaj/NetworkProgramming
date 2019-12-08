@@ -6,6 +6,6 @@ hw4.py: Python is fun. Functions as a distributed, peer to peer hash table in th
 
 Issues: Testing still makes me cry.
 
-Approximate Total Man Hours: 30 Hrs.
+Approximate Total Man Hours: 20 Hrs.
 
 Breakdown: 60% Conley, Andrew; 40% Schmalz, Jonathon
