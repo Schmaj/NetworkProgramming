@@ -189,6 +189,11 @@ def bootstrap(remote_addr_string, remote_port_string, myId, meNode, k_buckets, k
 
 
 #attempts to find remote node, updates current node's k-buckets
+#Arg nodeID: node we are trying to find
+#Arg kbuckets: data structure of the hash table
+#Arg k: size of kbuckets
+#Arg N: number of kbuckets
+#Arg meNode: Our current Node
 def findNode(nodeID, kbuckets, k, N, meNode):
 
 	myId = meNode.id
@@ -305,6 +310,12 @@ def findValue(key, kbuckets, k, N, meNode, storedDict):
 
 
 #send Store RPC to single node with ID closest to key
+#key: key to be stored
+#value: value to be stored
+#k_buckets: stores the nodes
+#k: size of k-bucket
+#meNode: Our node
+#storedDict: local dictionary storing our key-value pairs
 def store(key, value, k_buckets, k, meNode, storedDict):
 
 	minDist = meNode.id ^ key
