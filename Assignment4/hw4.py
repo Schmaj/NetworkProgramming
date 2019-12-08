@@ -353,19 +353,30 @@ def quit(myId, meNode, k_buckets):
 
 class KadImpl(csci4220_hw4_pb2_grpc.KadImplServicer):
 
+	# constructor shares reference to k_buckets and dictionary with the main UI thread
 	def __init__(self, k_buckets, dictionary, meNode, k):
+		# a list of list of Node Messages, ordered according to kademlia
 		self.k_buckets = k_buckets
+		# local dictionary of the key value pairs this site has stored
 		self.dictionary = dictionary
+		# a Node message from the proto file, contains id, port, and address for this site
 		self.meNode = meNode
+		# constant k for k-buckets
 		self.k = k
 
+	# server's response to rpc FindNode, returns a list of the k nodes closest to the requested node, from the nodes
+	# we are aware of.  Sets the requesting node to most recent
 	def FindNode(self, request, context):
 		print("Serving FindNode(%d) request for %d" % (request.idkey, request.node.id))
 
+		# name of requested node
 		nodeID = request.idkey
 
+		# temporary variable holding the largest distance between a node in our list of return values and the requested node
 		prevDist = -1
+		# hard-coded value for number of bits in an id
 		N = 4
+		# list of k closest nodes
 		nodeList = []
 
 		# go through each bucket and iterate over the nodes until we have seen k
@@ -383,6 +394,7 @@ class KadImpl(csci4220_hw4_pb2_grpc.KadImplServicer):
 			nodeList.append(node)
 
 
+		# flag to represent whether or not the node making the request is already in our k-buckets
 		found = False
 
 		for bucket in self.k_buckets:
@@ -391,17 +403,19 @@ class KadImpl(csci4220_hw4_pb2_grpc.KadImplServicer):
 					found = True
 					break
 
+		# if we know about the node, make it most recent
 		if(found == True):
 			makeMostRecent(request.node, self.k_buckets)
+		# else add to our buckets
 		else:
 			addNode(self.k_buckets, request.node, self.meNode.id, self.k)
 
 
 		return csci4220_hw4_pb2.NodeList(responding_node = self.meNode, nodes = nodeList)
-		# nodeID, kbuckets, k, N, meNode
-		# return nodeList
 
 
+	# similar to findNode, but returns key and value if we have the key stored
+	# also updates our k-buckets to include 
 	def FindValue(self, request, context):
 		key = request.idkey
 		print("Serving FindKey(%d) request for %d" % (key, request.node.id))
@@ -450,6 +464,7 @@ class KadImpl(csci4220_hw4_pb2_grpc.KadImplServicer):
 		return csci4220_hw4_pb2.NodeList(responding_node = self.meNode, nodes = nodeList)
 
 
+	# adds value to local saved values, and sets the requesting node to most recent
 	def Store(self, request, context):
 		print("Storing key %d value \"%s\"" % (request.key, request.value))
 		self.dictionary[request.key] = request.value
@@ -471,6 +486,7 @@ class KadImpl(csci4220_hw4_pb2_grpc.KadImplServicer):
 		IDKey = csci4220_hw4_pb2.IDKey(node=self.meNode, idkey=self.meNode.id)
 		return IDKey
 
+	# removes quitting node from our k-buckets
 	def Quit(self, request, context):
 		quittingNode = request.node
 		for i in range(len(self.k_buckets)):
@@ -484,6 +500,7 @@ class KadImpl(csci4220_hw4_pb2_grpc.KadImplServicer):
 		return IDKey
 
 
+# intializes our KadImple class, passes necessary values to listening thread
 def serve(listener_port, k_buckets, dictionary, meNode, k):
 	server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
 	csci4220_hw4_pb2_grpc.add_KadImplServicer_to_server(
@@ -504,14 +521,20 @@ def run():
 	my_hostname = socket.gethostname() # Gets my host name
 	my_address = socket.gethostbyname(my_hostname) # Gets my IP address from my hostname
 
+	# list of lists of Node objects, initially each list is empty.  There are 4 lists hard coded because we
+	# are using 4 bit integers, and therefore 4 k-buckets
 	k_buckets = [[],[],[],[]]
+	# a dictionary to hold the key value pairs we store locally
 	dictionary = dict()
 	meNode = csci4220_hw4_pb2.Node(id=local_id, port=int(my_port), address=my_address)
 
+	# a new thread is created to handle listening for rpc calls so the UI thread and listening thread can run in parallel
+	# thread must be a daemon thread to have it killed when the main thread ends on QUIT command
 	t = threading.Thread(target=serve, args=(my_port, k_buckets, dictionary, meNode, k,), daemon = True)
 	t.start()
 	#serve(my_port, k_buckets, dictionary, meNode, k)
 
+	# loop until QUIT command is received, call appropriate function for each other command
 	while(True):
 		command = input('').split()
 
@@ -525,14 +548,12 @@ def run():
 			print("Before FIND_NODE command, k-buckets are:")
 			printBuckets(k_buckets)
 			findNode(int(command[1]), k_buckets, k, 4, meNode)
-			#nodeID, kbuckets, k, N, meNode
 
 		elif command[0] == "FIND_VALUE":
 			print("Before FIND_VALUE command, k-buckets are:")
 			printBuckets(k_buckets)
 
 			findValue(int(command[1]), k_buckets, k, 4, meNode, dictionary)
-			#key, kbuckets, k, N, meNode, storedDict
 
 			print("After FIND_VALUE command, k-buckets are:")
 			printBuckets(k_buckets)
@@ -548,15 +569,6 @@ def run():
 			sys.exit()
 			break
 
-	''' Use the following code to convert a hostname to an IP and start a channel
-	Note that every stub needs a channel attached to it
-	When you are done with a channel you should call .close() on the channel.
-	Submitty may kill your program if you have too many file descriptors open
-	at the same time. '''
-	
-	#remote_addr = socket.gethostbyname(remote_addr_string)
-	#remote_port = int(remote_port_string)
-	#channel = grpc.insecure_channel(remote_addr + ':' + str(remote_port))
 
 if __name__ == '__main__':
 	run()
